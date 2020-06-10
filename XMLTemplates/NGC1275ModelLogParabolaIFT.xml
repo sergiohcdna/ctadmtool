@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<source_library title="source library">
+  <source name="NGC1275" type="PointSource">
+    <spectrum type="LogParabola">
+      <parameter name="Prefactor" scale="1.e-16" value="0.21" min="1e-03" max="1000.0" free="1" />
+      <parameter name="Index" scale="-1" value="3.60" min="0.0" max="+5.0" free="1" />
+      <parameter name="Curvature" scale="-1" value="0.08" min="0.0" max="+0.2" free="1" />
+      <parameter name="PivotEnergy" scale="1e6" value="0.20" min="0.001" max="1000.0" free="1" />
+    </spectrum>
+    <spatialModel type="PointSource">
+      <parameter name="RA" ,="1.0" value="49.951" min="-360" max="360" free="0" />
+      <parameter name="DEC" ,="1.0" value="41.512" min="-90" max="90" free="0" />
+    </spatialModel>
+  </source>
+  <source name="CTABackgroundModel" type="CTAIrfBackground" instrument="CTA">
+    <spectrum type="PowerLaw">
+      <parameter name="Prefactor" value="1" error="0" scale="1" min="0.001" max="1000" free="1" />
+      <parameter name="Index" value="0" error="0" scale="1" min="-5" max="5" free="1" />
+      <parameter name="Scale" value="1" scale="1000000" min="0.01" max="1000" free="0" />
+    </spectrum>
+  </source>
+</source_library>
