@@ -27,7 +27,7 @@ def delete_last_lines( n=1 ) :
         sys.stdout.write( ERASE_LINE )
 
 #   Wait until run the next python task.
-def Wait( waiting ) ;
+def Wait( waiting ) :
     '''Wait x time until run the next python block code. You can use it to control
     the code flow and then print some useful messages.
     Parameters:
@@ -45,7 +45,7 @@ def Wait( waiting ) ;
 
 def createname( mypath , name ) :
     '''Return a string with a proper name'''
-    return os.path( mypath , name )
+    return os.path.join( mypath , name )
 
 def checkPathandExit( thispath ) :
     '''Check if the path to file or directory'''
@@ -58,7 +58,7 @@ def checkDir( thispath ) :
     The functions is useful to check if any out-put path corresponds to a valid directory'''
     if os.path.exists( thispath ) :
         if not os.path.isdir( thispath ) :
-            print( 'Sorry, you are trying to pass any other file-type as the outpath directory'
+            print( 'Sorry, you are trying to pass any other file-type as the outpath directory' )
             sys.exit( 1 )
         else :
             print( 'Good, this is a directory. Nothing to do' )
