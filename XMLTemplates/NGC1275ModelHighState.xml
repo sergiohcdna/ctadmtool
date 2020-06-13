@@ -5,7 +5,7 @@
       <parameter name="Prefactor" scale="1.e-16" value="15.4" min="1e-03" max="1000.0" free="1" />
       <parameter name="Index" scale="-1" value="2.11" min="0.0" max="+5.0" free="1" />
       <parameter name="CutoffEnergy" scale="1e6" value="0.56" min="0.001" max="1000.0" free="1" />
-      <parameter name="PivotEnergy" scale="1e6" value="0.30" min="0.001" max="1000.0" free="1" />
+      <parameter name="PivotEnergy" scale="1e6" value="0.30" min="0.001" max="1000.0" free="0" />
     </spectrum>
     <spatialModel type="PointSource">
       <parameter name="RA" ,="1.0" value="49.951" min="-360" max="360" free="0" />
