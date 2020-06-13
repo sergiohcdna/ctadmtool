@@ -7,7 +7,6 @@
 import ctools
 import gammalib
 import cscripts
-import myCTAfuncs
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -15,7 +14,6 @@ from matplotlib.colors import SymLogNorm
 import math
 import numpy as np
 import scipy
-import mycsspec
 
 import glob
 import os
@@ -24,47 +22,11 @@ import csv
 import time
 import argparse
 
+from auxfunctions import *
 
 #=====================#
 # Routine entry point #
 #=====================#
-
-CURSOR_UP_ONE = '\x1b[1A'
-ERASE_LINE = '\x1b[2K'
-
-def delete_last_lines(n=1):
-	for _ in range(n):
-		sys.stdout.write( CURSOR_UP_ONE )
-		sys.stdout.write( ERASE_LINE )
-
-def Wait( waiting ) :
-	for i in range( waiting ): 
-		print( '\t%d    %s' % ( waiting - i , ( waiting - i ) * '*' ) )
-		delete_last_lines( 1 )
-		time.sleep( 1 )
-	print( '\n' )
-
-def createname( mypath , name ) :
-	return os.path.join( mypath , name )
-
-def checkPathandExit( thispath ) :
-	if not os.path.exists( thispath ) :
-		print( '\t\tError. You are trying to pass a file or directory \
-			that does not exists.' )
-		sys.exit( 1 )
-
-def checkDir( thispath ) :
-	if os.path.exists( thispath ) :
-		if not os.path.isdir( thispath ) :
-			print( 'Sorry, you are trying to pass any other file-type \
-				as the outpath directory' )
-			sys.exit( 1 )
-		else :
-			print( 'Good, this a directory. Nothing to do' )
-	else :
-		print( 'It seems like the path does not exists. \
-			The scripts create the directory for you' )
-		os.makedirs( thispath )
 
 def ctamap( obs , emin , emax , \
 	coordsys , ra , dec , rad , \
@@ -326,7 +288,7 @@ def plotParametersDist( parameters , models ) :
 				( 0.44 , 0.16 , 0.39 ) , \
 				'{:s}, {:s} ({:s})'.format( name , par , unit ) , \
 				parameters.size , \
-				createname( args.outpath , '{:s}{:s}Distribution.png'.format( name , par ) ) )
+				auxMan.createname( args.outpath , '{:s}{:s}Distribution.png'.format( name , par ) ) )
 
 def select_onoff_obs( obs , emin , emax ) :
     """
@@ -415,8 +377,7 @@ def ONOFFAnalysisObservationContainer( meanobservation , caldb , irf , onoffmode
 	like[ 'caldb' ]         = caldb
 	like[ 'irf' ]           = irf
 	like[ 'inmodel' ]       = onoffmodelname
-	likeModelName           = createname( outpath ,\
-		'{:s}LikeOutModel.xml'.format( prefix ) )
+	likeModelName           = auxMan.createname( outpath , '{:s}LikeOutModel.xml'.format( prefix ) )
 	like[ 'outmodel' ]      = likeModelName
 	like[ 'like_accuracy' ] = 1.e-4
 	like[ 'max_iter' ]      = 100
@@ -425,8 +386,7 @@ def ONOFFAnalysisObservationContainer( meanobservation , caldb , irf , onoffmode
 
 	sspec = mycsspec.csspec( like.obs() )
 
-	specname = createname( outpath , \
-		'{:s}Spectrum.fits'.format( prefix ) )
+	specname = auxMan.createname( outpath , '{:s}Spectrum.fits'.format( prefix ) )
 
 	sspec[ 'inmodel' ]  = onoffmodelname
 	sspec[ 'srcname' ]  = nameSource
@@ -442,8 +402,7 @@ def ONOFFAnalysisObservationContainer( meanobservation , caldb , irf , onoffmode
 
 	sspec.execute()
 
-	resname = createname( outpath , \
-		'{:s}ResidualMap.fits'.format( prefix ) )
+	resname = auxMan.createname( outpath , '{:s}ResidualMap.fits'.format( prefix ) )
 
 	respec                 = cscripts.csresspec( like.obs() )
 	respec[ 'algorithm' ]  = algorithm
@@ -456,13 +415,12 @@ def ONOFFAnalysisObservationContainer( meanobservation , caldb , irf , onoffmode
 
 	respec.execute()
 
-	compname = createname( outpath , '{:s}ComponentCounts.png'.format( prefix ) ) 
+	compname = auxMan.createname( outpath , '{:s}ComponentCounts.png'.format( prefix ) )
 	myCTAfuncs.plot_residuals( resname , compname , 0 )
 
 	thisenergies , dataon , dataoff , comps , label = myCTAfuncs.get_residuals( resname , 0 )
 
-	myCTAfuncs.plot_spectrum( specname , \
-		createname( outpath , '{:s}Spectrum{:s}.png'.format( prefix , gname ) ) ,\
+	myCTAfuncs.plot_spectrum( specname , auxMan.createname( outpath , '{:s}Spectrum{:s}.png'.format( prefix , gname ) ) ,\
 		models , nameSource , dataon , dataoff , comps , is_onoff ,\
 		1.e-9 , 1.e-15 , emax , emin , sensData , srcSens , additional , addLabel )
 
@@ -634,7 +592,7 @@ if __name__ == '__main__':
 		'GCTAModelBackground' , 'GCTAModelCubeBackground' , \
 		'GCTAModelIrfBackground' , 'GCTAModelRadialAcceptance' ]
 
-	checkDir( args.outpath )
+	auxMan.checkDir( args.outpath )
 
 	models = gammalib.GModels( args.inmodel )
 	dir = gammalib.GSkyDir()
@@ -661,7 +619,7 @@ if __name__ == '__main__':
 	eflux  = np.empty( shape=( 0 , 0 ) )
 	euflux = np.empty( shape=( 0 , 0 ) )
 
-	
+
 	#################################################################
 	#####                       The Simuations
 	#################################################################
@@ -671,14 +629,14 @@ if __name__ == '__main__':
 		print( 'Observation: {:d}'.format( sim + 1 ) )
 		print( '**********************************' )
 
-		cntname = createname( args.outpath , \
+		cntname = auxMan.createname( args.outpath , \
 			'CountCubeObsSim{:d}.fits'.format( sim ) )
 
 
 		obslist = gammalib.GObservations()
 		type = ''
 		eventlist=''
-		
+
 		obs_binned = myCTAfuncs.single_obs( type=type , \
 			eventfile=eventlist ,\
 			pntdir=dir ,\
@@ -704,7 +662,7 @@ if __name__ == '__main__':
 
 		obssim.execute()
 
-		obsname = createname( args.outpath , \
+		obsname = auxMan.createname( args.outpath , \
 			'Obs{:d}.xml'.format( sim ) )
 
 		obsxml  = gammalib.GXml()
@@ -717,14 +675,14 @@ if __name__ == '__main__':
 		if sim == 0 :
 			for source in models :
 				if source.classname() not in bkgclasses :
-					mapname = createname( args.outpath , \
+					mapname = auxMan.createname( args.outpath , \
 						'Source{:s}CTAMAP{:d}.png'.format( source.name() , sim ) )
 					ctamap( cntname , args.emin , args.emax , args.coordsys , \
 						source.spatial()[ 'RA' ].value() , \
 						source.spatial()[ 'DEC' ].value() , \
 						2.0 , args.caldb , args.irf , \
 						source.name() , mapname )
-			mapname = createname( args.outpath , \
+			mapname = auxMan.createname( args.outpath , \
 				'Global{:s}CTAMAP{:d}.png'.format( args.gname , sim ) ) 
 			ctamap( cntname , args.emin , args.emax , args.coordsys ,\
 				args.ROIra , args.ROIdec , args.ROIradius , \
@@ -732,9 +690,9 @@ if __name__ == '__main__':
 
 		onoffgen = cscripts.csphagen()
 
-		onoffname = createname( args.outpath , \
+		onoffname = auxMan.createname( args.outpath , \
 			'ONOFFObs{:d}.xml'.format( sim ) )
-		onoffmodelname = createname( args.outpath , \
+		onoffmodelname = auxMan.createname( args.outpath , \
 			'ONOFFModel{:d}.xml'.format( sim ) )
 		prefix = os.path.join( args.outpath , \
 			'onoff{:d}'.format( sim ) )
@@ -777,12 +735,10 @@ if __name__ == '__main__':
 		like[ 'caldb' ]    = args.caldb
 		like[ 'irf' ]      = args.irf
 		like[ 'inmodel' ]  = onoffmodelname
-		likeModelName      = createname( args.outpath ,\
-			'LikeOutModel{:d}.xml'.format( sim ) )
+		likeModelName      = auxMan.createname( args.outpath , 'LikeOutModel{:d}.xml'.format( sim ) )
 		like[ 'outmodel' ] = likeModelName
 		like[ 'like_accuracy' ] = 1.e-4
 		like[ 'max_iter' ] = 100
-		# like[ 'chatter' ] = 4
 		like.execute()
 
 		likeonoffobs      = like.obs()[ 0 ]
@@ -813,9 +769,9 @@ if __name__ == '__main__':
 			os.remove( prefix + '_pha_on.fits' )
 			os.remove( prefix + '_rmf.fits' )
 
-		os.system( 'say -v Kyoko Simulation {:d} Done'.format( sim + 1 ) )
+		#os.system( 'say -v Kyoko Simulation {:d} Done'.format( sim + 1 ) )
 
-		delete_last_lines( 3 )
+		auxMan.delete_last_lines( 3 )
 
 
 	ebounds = meanObs.on_spec().ebounds()
@@ -840,7 +796,7 @@ if __name__ == '__main__':
 		energybins[ 'Emin' ][ i ]  = ebounds.emin( i ).TeV()
 		energybins[ 'Emax' ][ i ]  = ebounds.emax( i ).TeV()
 
-	onoffmodelname = createname( args.outpath , \
+	onoffmodelname = auxMan.createname( args.outpath , \
 		'ONOFFModel0.xml' )
 
 	addLabel = 'CTA Gamma Prop. Paper'
@@ -861,7 +817,7 @@ if __name__ == '__main__':
 	# 	sensData , args.srcSens , 'SigmaDnObs' )
 
 	writeEnergyBins( energybins ,\
-		createname( args.outpath , 'AnalysisEnergyBins.txt' ) )
+		auxMan.createname( args.outpath , 'AnalysisEnergyBins.txt' ) )
 
 
 	print( '**************************************************' )
@@ -870,17 +826,17 @@ if __name__ == '__main__':
 	getMeanCountsFromList( MeanModelCountsLike , listaLikeContainer )
 
 	writeMeanCountsArray( MeanModelCounts , \
-		createname( args.outpath , '{:s}MeanCountsObsContainer.txt'.format( args.gname ) ) )
+		auxMan.createname( args.outpath , '{:s}MeanCountsObsContainer.txt'.format( args.gname ) ) )
 
 	writeMeanCountsArray( MeanModelCountsLike , \
-		createname( args.outpath , '{:s}MeanCountsObsLikeContainer.txt'.format( args.gname ) ) )
+		auxMan.createname( args.outpath , '{:s}MeanCountsObsLikeContainer.txt'.format( args.gname ) ) )
 
 	writeParametersArray( parameters ,\
-		createname( args.outpath , '{:s}ParametersModels.txt'.format( args.gname ) ) )
+		auxMan.createname( args.outpath , '{:s}ParametersModels.txt'.format( args.gname ) ) )
 
 	plotParametersDist( parameters , models )
 
-	os.system( 'say -v Kyoko This is the END' )
+	#os.system( 'say -v Kyoko This is the END' )
 
 
 
