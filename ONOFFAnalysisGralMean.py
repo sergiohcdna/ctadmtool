@@ -381,7 +381,7 @@ def ONOFFAnalysisObservationContainer( meanobservation , caldb , irf , onoffmode
     like[ 'outmodel' ]      = likeModelName
     like[ 'like_accuracy' ] = 1.e-4
     like[ 'max_iter' ]      = 100
-    like[ 'nthreads' ]      = 2
+    like[ 'nthreads' ]      = 8
     like.execute()
 
     sspec = mycsspec.csspec( like.obs() )
@@ -398,7 +398,7 @@ def ONOFFAnalysisObservationContainer( meanobservation , caldb , irf , onoffmode
     sspec[ 'emin' ]     = emin
     sspec[ 'emax' ]     = emax
     sspec[ 'enumbins' ] = enumbins
-    sspec[ 'nthreads' ] = 2
+    sspec[ 'nthreads' ] = 8
 
     sspec.execute()
 
@@ -658,7 +658,7 @@ if __name__ == '__main__':
         obssim                = ctools.ctobssim( obslist )
         obssim[ 'inmodel' ]   = args.inmodel
         obssim[ 'outevents' ] = cntname
-        obssim[ 'nthreads' ]  = 2
+        obssim[ 'nthreads' ]  = 8
         obssim[ 'seed' ]      = int( time.time() )
         obssim[ 'edisp' ]     = False
 
@@ -718,7 +718,7 @@ if __name__ == '__main__':
         onoffgen[ 'bkgregskip' ] = 0
         onoffgen[ 'etruemin' ]   = args.emin
         onoffgen[ 'etruemax' ]   = args.emax
-        onoffgen[ 'nthreads' ]   = 2
+        onoffgen[ 'nthreads' ]   = 8
         onoffgen[ 'stack' ]      = False
         onoffgen[ 'prefix' ]     = prefix
 
@@ -741,6 +741,7 @@ if __name__ == '__main__':
         like[ 'outmodel' ] = likeModelName
         like[ 'like_accuracy' ] = 1.e-4
         like[ 'max_iter' ] = 100
+        like[ 'nthreads' ] = 8
         like.execute()
 
         likeonoffobs      = like.obs()[ 0 ]
