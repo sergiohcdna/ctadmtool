@@ -95,7 +95,7 @@ def single_obs(type, eventfile, pntdir, tstart=0.0, duration=1800.0, deadc=0.95,
         events.gti(gti)
         events.ebounds(ebounds)
         obs_cta.events(events)
-      
+
     # Set instrument response
     obs_cta.response(irf, db)
 
@@ -212,11 +212,11 @@ def sim(obs, log=False, debug=False, chatter=2, edisp=False, seed=0, nbins=31,
         # (the ctobssim object will go out of scope one the function is
         # left)
         obs = sim.obs().copy()
-        
+
     # Optionally save file
     if (len(outfile) > 0):
         sim.save()
-        
+
     # Delete the simulation
     del sim
 
@@ -327,7 +327,7 @@ def plot_spectrum( filename , plotfile , model , source , con , coff , comp , \
 
         # If Test Statistic is larger than 25 and flux error is smaller than
         # flux then append flux plots ...
-        if ts > 25.0 and e_flx < flx:
+        if ts > 25.0 : #and e_flx < flx:
             energies.append( c_energy.real( row ) )
             flux.append( c_flux.real( row) )
             ed_engs.append( c_ed.real( row) )
