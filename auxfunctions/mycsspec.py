@@ -689,7 +689,7 @@ class csspec(ctools.csobservation):
         binNorm    = binNorm / scaleNorm
         logbinNorm = np.log10( binNorm )
 
-        lognorms = np.logspace( logbinNorm - 13 , logbinNorm + 10 , 8000 )
+        lognorms = np.logspace( logbinNorm - 5 , logbinNorm + 5 , 10000 )
 
         # Continue only if log-likelihood is non-zero
         logL0 = like.obs().logL() 
