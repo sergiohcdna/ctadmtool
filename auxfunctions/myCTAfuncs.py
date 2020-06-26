@@ -370,26 +370,20 @@ def plot_spectrum( filename , plotfile , model , source , con , coff , comp , \
 
     # Plot the spectrum 
     # plt.grid()
-    plt.errorbar( energies , flux , yerr=e_flux , xerr=[ ed_engs , eu_engs ] , fmt='ro' ,\
-    	label='Flux Points' )
-    plt.errorbar( ul_energies , ul_flux , xerr=[ ul_ed_engs , ul_eu_engs ] ,
-                 yerr=yerr , uplims=True , fmt='ro' , label='UL (C.L.=0.95)' )
-    plt.plot( allengs , thflux , color='black' , linewidth=2 , \
-    	label='Model' )
+    plt.errorbar( energies , flux , yerr=e_flux , xerr=[ ed_engs , eu_engs ] , fmt='ro' , label='Flux Points' )
+    plt.errorbar( ul_energies , ul_flux , xerr=[ ul_ed_engs , ul_eu_engs ] , yerr=yerr , uplims=True , fmt='ro' , label='UL (C.L.=0.95)' )
+    plt.plot( allengs , thflux , color='black' , linewidth=2 , label='Model' )
     plt.xlabel( 'Energy (TeV)' )
     plt.ylabel( r'E$^2$ $\times$ dN/dE (erg cm$^{-2}$ s$^{-1}$)' )
     plt.ylim( ydn_lim , yup_lim )
     plt.xlim( xdn_lim , xup_lim )
 
-    plt.plot( np.power( 10 , ( sensData[ 'loge' ] ) ) , sensData[ 'sensitivity' ] , \
-    	color=( 0.57 , 0.36 , 0.51 ) , linewidth=2 , label=srcSens )
+    plt.plot( np.power( 10 , ( sensData[ 'loge' ] ) ) , sensData[ 'sensitivity' ] , color=( 0.57 , 0.36 , 0.51 ) , linewidth=2 , label=srcSens )
 
     if additional.size == 0 :
-    	print( 'No additional Data in the plot' )
+        print( 'No additional Data in the plot' )
     else :
-    	plt.plot( additional[ 'e' ] , additional[ 'e2dnde' ] / 0.624 , \
-    		color=( 0.29 , 0.33 , 0.13 ) ,\
-    		linewidth=2 , label=addLabel )
+        plt.plot( additional[ 'e' ] , additional[ 'e2dnde' ] / 0.624 , color=( 0.29 , 0.33 , 0.13 ) , linewidth=2 , label=addLabel )
 
     plt.legend( loc='best' , prop={'size': 12} )
 
