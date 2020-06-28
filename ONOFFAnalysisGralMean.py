@@ -370,7 +370,7 @@ def select_onoff_obs( obs , emin , emax ) :
 
 def ONOFFAnalysisObservationContainer( meanobservation , caldb , irf , onoffmodelname , outpath , \
     nameSource , emin , emax , enumbins , algorithm  , ROIradius , models , gname , is_onoff , \
-    sensData , srcSens , additional , addLabel , prefix ) :
+    sensData , srcSens , additional , addLabel , prefix , p_ts ) :
 
 
     like = ctools.ctlike( meanobservation )
@@ -422,7 +422,7 @@ def ONOFFAnalysisObservationContainer( meanobservation , caldb , irf , onoffmode
 
     myCTAfuncs.plot_spectrum( specname , auxMan.createname( outpath , '{:s}Spectrum{:s}.png'.format( prefix , gname ) ) ,\
         models , nameSource , dataon , dataoff , comps , is_onoff ,\
-        1.e-9 , 1.e-15 , emax , emin , sensData , srcSens , additional , addLabel )
+        1.e-9 , 1.e-15 , emax , emin , sensData , srcSens , additional , addLabel , p_ts )
 
     os.remove( specname )
     os.remove( resname )
@@ -529,6 +529,11 @@ if __name__ == '__main__':
         type=str ,\
         default='0' ,\
         metavar='0' )
+    instrument.add_argument( '--pts' ,\
+        help='Value for TS to check if plot point-flux (ts > pts) or upper-limit (ts < pts). Default value: 25.0' ,\
+        type=float ,\
+        default='25.0' ,\
+        metavar='25.0' )
     instrument.add_argument( '--nsims' ,\
         help='Number of simulations' ,\
         type=int ,\
@@ -807,7 +812,7 @@ if __name__ == '__main__':
         args.outpath , nameSource[ 0 ] , args.emin , args.emax , args.enumbins , \
         args.algorithm , args.ROIradius , models , args.gname , args.is_onoff , \
         sensData , args.srcSens ,\
-        additionalData , addLabel , 'meanObs' )
+        additionalData , addLabel , 'meanObs' , args.pts )
 
     # ONOFFAnalysisObservationContainer( sigmaupobservation , args.caldb , args.irf , onoffmodelname , \
     #   args.outpath , nameSource[ 0 ] , args.emin , args.emax , args.enumbins , \
@@ -840,53 +845,4 @@ if __name__ == '__main__':
     plotParametersDist( parameters , models )
 
     #os.system( 'say -v Kyoko This is the END' )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
