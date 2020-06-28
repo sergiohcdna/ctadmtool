@@ -250,7 +250,7 @@ def ts_ON( counts_on , source_on , bkg_on ) :
 
 def plot_spectrum( filename , plotfile , model , source , con , coff , comp , \
         is_onoff , yup_lim , ydn_lim , xup_lim , xdn_lim , sensData , srcSens , \
-        additional , addLabel ) :
+        additional , addLabel , p_ts ) :
     """
     Plot spectrum
 
@@ -327,7 +327,7 @@ def plot_spectrum( filename , plotfile , model , source , con , coff , comp , \
 
         # If Test Statistic is larger than 25 and flux error is smaller than
         # flux then append flux plots ...
-        if ts > 25.0 : #and e_flx < flx:
+        if ts > p_ts : #and e_flx < flx:
             energies.append( c_energy.real( row ) )
             flux.append( c_flux.real( row) )
             ed_engs.append( c_ed.real( row) )
