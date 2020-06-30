@@ -327,7 +327,7 @@ def plot_spectrum( filename , plotfile , model , source , con , coff , comp , \
 
         # If Test Statistic is larger than 25 and flux error is smaller than
         # flux then append flux plots ...
-        if ts > p_ts : #and e_flx < flx:
+        if ts > p_ts and e_flx < flx:
             energies.append( c_energy.real( row ) )
             flux.append( c_flux.real( row) )
             ed_engs.append( c_ed.real( row) )
