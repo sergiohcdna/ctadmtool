@@ -26,8 +26,8 @@ The contents of the project are:
 5. **ONOFFAnalysisGralMean.py**
    * Implementation for simulation of observation, likelihood fit and calculation of upper limits, residuals calculation, spectrum calculation and plotting, for a specified xml-model.
 
-- [] Future work: More comments in code :)
-- [] Future work: Add c++ classes for DM analysis
+- [ ] Future work: More comments in code :)
+- [ ] Future work: Add c++ classes for DM analysis
 
 Feel free to make changes in this file :+1:
 
