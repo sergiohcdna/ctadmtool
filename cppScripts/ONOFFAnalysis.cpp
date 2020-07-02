@@ -56,7 +56,7 @@ static void show_usage(std::string name)
               << "\tpntRA    : (double) R.A. of pointing, in degrees\n"
               << "\tpntDeC   : (double) Dec. of pointing, in degrees\n"
               << "\tsource   : (string) Name of source of interest\n"
-              << "\tduration : (double) Duration of observation, in hours\n"
+              << "\tinterval : (double) Duration of observation, in hours\n"
               << "\tirf      : (string) Intrument response function\n"
               << "\tcaldb    : (string) Calibration database\n"
               << "\tdeadc    : (double) Dead time, [0,1]\n"
@@ -198,22 +198,18 @@ int main( int argc , char* argv[] )
         std::cout << "Nice\nParsing arguments..." << std::endl ;
     }
 
-    // Getting the arguments from command-line
-    
-    // XML file
+    // Getting the arguments from command-line 
     std::string xmlfile = argv[ 1 ] ;
-    
-    // pointing right ascension
     double pntRA        = strTodouble( argv[ 2 ] ) ;
-    
-    // pointing declination
     double pntDeC       = strTodouble( argv[ 3 ] ) ;
-    
-    // Name of the source
     std::string source  = argv[ 4 ] ;
-    
-    // Duration 
-    double duration     = strTodouble( argv[ 5 ] ) * 3600 ;
+    double interval     = strTodouble( argv[ 5 ] ) * 3600 ;
+    std::string irf     = argv[ 6 ] ;
+    std::string caldb   = argv[ 7 ] ;
+    double deadc        = strTodouble( argv[ 8 ] ) ;
+    double emin         = strTodouble( argv[ 9 ] ) ;
+    double emax         = strTodouble( argv[ 10 ] ) ;
+    double rad          = strTodouble( argv[ 11 ] ) ;
 
     // Print right ascensiond and declination got from command-line
     std::cout << std::setprecision( 4 ) << "Pointing at ( RA , Dec ) =  ( " 
@@ -259,10 +255,8 @@ int main( int argc , char* argv[] )
     GObservations obslist ;
 
     // CTA observation container
-    GCTAObservation thisobs = single_obs( pntdir , 
-                                          "North_z20_50h" , "prod3b-v2" ,
-                                          0.0 , duration , 0.95 ,
-                                          0.1 , 10.0 , 3.0 , "0001"  ) ;
+    GCTAObservation myobs = single_obs( pntdir , irf , caldb , 0.0 , interval , 
+                                        deadc , emin , emax , rad , "0001"  ) ;
 
     // Return
     return 0 ;
