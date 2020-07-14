@@ -27,7 +27,7 @@ The contents of the project are:
    * Implementation for simulation of observation, likelihood fit and calculation of upper limits, residuals calculation, spectrum calculation and plotting, for a specified xml-model.
 
 - [ ] Future work: More comments in code :)
-- [ ] Future work: Add c++ classes for DM analysis
+- [X] Future work: Add c++ classes for DM analysis
 
 Feel free to make changes in this file :+1:
 
@@ -37,7 +37,11 @@ I (Sergio) have two functional versions of ctools and gammalib running in a clus
 
 ## ON/OFF Analysis
 
-The script **ONOFFAnalysisGralMean.py** presents the case for simulation and analysis of an observation in (*Wobble*) ON/OFF mode, where the CTA telescopes are pointing to an alternative sky position (via command-line argumment) lying x degrees from the center of the region of interes (ROI). You need to specify the path to XML-model file, the name of the source of interest (you can have more than one source described in the template), pointing position, some instrument-related options, and analysis-related options. The script performs n observations of h hours, using IRF and caldb indicated via command-line. After every realization, the code performs a MLE-fit to estimate best parameters and extract the number of events for each bin of energy. Then, an ON/OFF container is created with the average number of events (computed from the n realizations) and a *average* spectrum is computed using ctlike and ctulimit. The script returns a file with average counts before/after MLE fit, the energy bins boundaries, XML model after MLE fit, histograms with parameter distribution for n realizations, file with parameters obtained after MLE fit, a png image with the map centered in the position of source of interest, a png image with the *average* spectrum plot; arf, pha and rmf files obtained after ON/OFF conversion.
+For the (*Wobble*) ON/OFF observation, I implemented two scripts: the first one in python, and the second in C++. An observation in (*Wobble*) ON/OFF mode is where the CTA telescopes are pointing to an alternative sky position lying x degrees from the center of the region of interes (ROI). The python script was written using the csphagen python module, default when ctools is built. In the other hand, the C++ script is currently under construction, because there is not a tool to create ON/OFF observations. The creation of the ON/OFF observation is based in the csphagen python tool, but with several simplifications. The goal of the C++ script is to test new gammalib classes to describe DM scpectral models according to the purposes of this project, and/or calculation of full-likeihood (including nuisance parameters).
+
+### Python Script
+
+The script **ONOFFAnalysisGralMean.py** presents the case for simulation and analysis of an observation in (*Wobble*) ON/OFF mode. You need to specify the path to XML-model file, the name of the source of interest (you can have more than one source described in the template), pointing position, some instrument-related options, and analysis-related options. The script performs n observations of h hours, using IRF and caldb indicated via command-line. After every realization, the code performs a MLE-fit to estimate best parameters and extract the number of events for each bin of energy. Then, an ON/OFF container is created with the average number of events (computed from the n realizations) and a *average* spectrum is computed using ctlike and ctulimit. The script returns a file with average counts before/after MLE fit, the energy bins boundaries, XML model after MLE fit, histograms with parameter distribution for n realizations, file with parameters obtained after MLE fit, a png image with the map centered in the position of source of interest, a png image with the *average* spectrum plot; arf, pha and rmf files obtained after ON/OFF conversion.
 
 To run the script, please be sure to have ctools and gammalib loaded. You can see the help mesagge by typping:
 
@@ -140,3 +144,83 @@ python3 ONOFFAnalysisGralMean.py --inmodel XMLTemplates/NGC1275ModelQuiescentSta
 ```
 
 Please note that for the option ```--addData```, you can pass an empty string, in this case no additional data will be plotted in spectrum plot. 
+
+### C++ script
+
+The C++ script is under **cppScripts/** folder. The name of the script is *ONOFFAnalysis.cpp*. I am currently coding the part about ON/OFF observation-container. You can the model via an XML template, and the direction of the pointing in celestial coordinates. If you have more than one source in the XML template you must pass the name of the source you are interested to simulate. As in the *python script* you pass (via command line) information about the energy bounds and bins, calibration database and IRF, radius of ROI (ON/OFF), name of output folder, name to save count-cubes.
+
+To run the C++ script yu must compile *ONOFFAnalysis.cpp*. To do that please follow the next instructions:
+
+1.  After loading your *ctools* and *gammalib* environment, type ```csinfo info```. This would show information about the current installation. 
+2.  Put attention to the last four rows. Get the information about GAMMALIB and CTOOLS CFLAGS and LIBS. In my case, I have something like:
+
+```
+GAMMALIB  CFLAGS ................. -fopenmp -I/home/shkdna/CTASoft09062020/gamma/include/gammalib 
+                                   -I/home/shkdna/CTASoft09062020/gamma/include
+```
+
+3.  Change to $HOME/ctaAnalysis/cppScripts
+4.  Type:
+```cpp
+  g++ ONOFFAnalysis.cpp \
+  -fopenmp \
+  -I/home/shkdna/CTASoft09062020/gamma/include/gammalib \
+  -I/home/shkdna/CTASoft09062020/gamma/include \
+  -I/home/shkdna/CTASoft09062020/gamma/include/ctools \
+  -L/home/shkdna/CTASoft09062020/gamma/lib \
+  -lgamma -lctools \
+  -o ONOFFAnalysis
+```
+Change properly the information of the path to folder where you installed gammalib and ctools libs and include.
+
+At this point, everything must be go smoothly. So, you can check all the current options by typing:
+
+```cpp
+./ONOFFAnalysis
+```
+
+The complete message is:
+
+```cpp
+You must check the number of arguments
+Usage: ./ONOFFAnalysis <args> CTA-relatedArguments:
+	XMLfile  : (string) XML file with model
+	pntRA    : (double) R.A. of pointing, in degrees
+	pntDeC   : (double) Dec. of pointing, in degrees
+	source   : (string) Name of source of interest
+	interval : (double) Duration of observation, in hours
+	irf      : (string) Intrument response function
+	caldb    : (string) Calibration database
+	deadc    : (double) Dead time, [0,1]
+	emin     : (double) Minimum energy, in TeV
+	emax     : (double) Maximum energy, in TeV
+	enbins   : (int)    Number of energy bins
+	rad      : (double) Radius of region of interest
+	outpath  : (string) Path to output directory
+	obsname  : (string) Name of the XML-file with all the
+	                    details about CTAObservation
+	threads  : (int)    Number of threads used to
+	                    parallelization when possible
+
+```
+
+By the moment, you must pass all the options (sorry, this must be change). Then, to run the script please (I will update this when new changes are added):
+
+```cpp
+./ONOFFAnalysis \
+/home/shkdna/ctaAnalysis/XMLTemplates/NGC1275ModelQuiescentState.xml \
+45.0 \
+50.0 \
+NGC1275 \
+1 \
+North_z20_5h \
+prod3b-v2 \
+0.95 \
+0.1 \
+10.0 \
+40 \
+3.0 \
+NGC1275Simulation \
+NGC1275ObsList.xml \
+8
+```
