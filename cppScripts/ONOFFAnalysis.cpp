@@ -19,7 +19,10 @@
 #include <sstream>
 #include <iomanip>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
+#include <ctime>
 #include "GammaLib.hpp"
 #include "ctools.hpp"
 
@@ -45,9 +48,12 @@
  *      - Minimum energy in TeV                                                *
  *      - Maximum energy in TeV                                                *
  *      - Radius of region of interest in degrees                              *
+ *      - Output directory                                                     *
+ *      - Obs-list XML file name                                               *
+ *      - Number of threads used to parallelization                            *
  ******************************************************************************/
 
-static void show_usage(std::string name)
+static void show_usage( std::string name )
 {
     // Print help message
     std::cerr << "Usage: " << name << " <args> CTA-related"
@@ -62,7 +68,13 @@ static void show_usage(std::string name)
               << "\tdeadc    : (double) Dead time, [0,1]\n"
               << "\temin     : (double) Minimum energy, in TeV\n"
               << "\temax     : (double) Maximum energy, in TeV\n"
+              << "\tenbins   : (int)    Number of energy bins\n"
               << "\trad      : (double) Radius of region of interest\n"
+              << "\toutpath  : (string) Path to output directory\n"
+              << "\tobsname  : (string) Name of the XML-file with all the\n"
+              << "\t                    details about CTAObservation\n"
+              << "\tthreads  : (int)    Number of threads used to\n"
+              << "\t                    parallelization when possible\n"
               << std::endl ;
 }
 
@@ -90,6 +102,69 @@ double strTodouble( std::string strnumber )
 }
 
 /********************************************
+ *  Function to convert string to double    *
+ *  Required parameters:                    *
+ *      - strnumber: (string) number        *
+ *******************************************/
+double strToint( std::string strnumber )
+{
+    // Declare double var 'number'
+    int number ;
+    // Declare stringstream var 'ssnumber' with strnumber
+    std::stringstream ssnumber( strnumber ) ;
+
+    // Conversion from string to int
+    // If the conversion fails, exit
+    if ( ! ( ssnumber >> number ) ) {
+        std::cout << "Error converting string to double" << std::endl ;
+        exit( EXIT_FAILURE ) ;
+    }
+
+    // Return double number
+    return number ;
+}
+
+
+/************************************************************
+ *      Function to check if path-to-dir exists.            *
+ *      If path does not exist, create directory.           *
+ *      If path-to-dir exists and it is not a directory     *
+ *      then exit. But if path-to-dir exists and is         *
+ *      a directory, then print message with path.          *
+ *      Required parameters:                                *
+ *          - dirname : (string) path to directory          *
+ ***********************************************************/
+void checkdir( std::string dirname )
+{
+    // Declare stat object to manage file
+    struct stat sb ;
+    
+    // Check if path-to directory exists and if is a directory
+    if ( stat( dirname.c_str() , &sb ) != 0 ) {
+        std::cout << "Cannot access " << dirname 
+                  << "\nCreating directory..."
+                  << std::endl ;
+        int check = mkdir( dirname.c_str() , 0777 ) ;
+        if ( !check ) {
+            std::cout << "Directory" << dirname << " created successfully"
+                      << ":)" << std::endl ;
+        } else {
+            std::cout << "There was problems to create directory"
+                      << ":(" << std::endl ;
+            exit( EXIT_FAILURE ) ;
+        }
+    } else if ( sb.st_mode & S_IFDIR ) {
+        std::cout << "Good!\n\tI love it when I have not to work\n"
+                  << dirname << " is a directory"
+                  << std::endl ;
+    } else {
+        std::cout << dirname << " is not a directory"
+                  << "Exit\nExit\nExit" << std::endl ;
+        exit( EXIT_FAILURE ) ;
+    }
+}
+
+/********************************************
  *  Print number of observation id_obs      *
  *  Required parameters:                    *
  *      -id_obs: (int) observation number   *
@@ -104,26 +179,68 @@ void print_obs( int id_obs )
 
 }
 
+/********************************************
+ *      UTC to MJD (in seconds) converter   *
+ *      Required parameters:                *
+ *          - gmt_time: (struct tm) Time    *
+ *******************************************/
+
+unsigned long int get_mjd( std::tm *gmt_time )
+{
+
+    //  Get year, month, day, hour, minutes and seconds
+    //  from gmt_time struct
+    int year = gmt_time -> tm_year ;
+    int month = gmt_time -> tm_mon ;
+    int day = gmt_time -> tm_mday ;
+    int hour = gmt_time -> tm_hour ;
+    int mins = gmt_time -> tm_min ;
+    int secs = gmt_time -> tm_sec ;
+
+    //  Compute total seconds from hours, minutes and seconds
+    int tsecs = hour * 3600 + mins * 60 + secs ;
+
+    //  MJD Calculation
+    int l = 0 ;
+    unsigned long int mjd = 0 ;
+
+    if ( ( month == 1 ) || ( month == 2 ) ) {
+        l = 1 ;
+    }
+
+    mjd = 14956 + day + ( int )( ( year - l ) * 365.25 )
+          + ( int )( ( month + 1 + l * 12 ) * 30.60001 ) ;
+
+    //  Converting to seconds
+    mjd *= 86400 ;
+    mjd += tsecs ;
+
+    //  Return
+    return mjd ;
+
+}
+
 /************************************************************
  *      Create empty CTA observation container              *
  *      Required parameters:                                *
- *          - pntdir: (GSkyDir) Direction to pointing       *
- *          - caldb : (string)  CTA-calibration database    *
- *          - id    : (string)  Identifier                  *
- *          - tstart: (double)  Start time, in seconds      *
- *          - tinter: (double)  Duration, in seconds        *
- *          - deadc : (double)  Dead time, [0,1]            *
- *          - emin  : (double)  Minimum Energy, in TeV      *
- *          - emax  : (double)  Maximum Energy, in TeV      *
- *          - rad   : (double)  Radius of ROI               *
- *          - irf   : (string)  CTA-IRF                     *
+ *          - pntdir : (GSkyDir) Direction to pointing      *
+ *          - caldb  : (string)  CTA-calibration database   *
+ *          - id     : (string)  Identifier                 *
+ *          - tstart : (double)  Start time, in seconds     *
+ *          - tinter : (double)  Duration, in seconds       *
+ *          - deadc  : (double)  Dead time, [0,1]           *
+ *          - emin   : (double)  Minimum Energy, in TeV     *
+ *          - emax   : (double)  Maximum Energy, in TeV     *
+ *          - enbins : (int)     Number of energy bins      *
+ *          - rad    : (double)  Radius of ROI              *
+ *          - irf    : (string)  CTA-IRF                    *
  ***********************************************************/
 GCTAObservation single_obs( GSkyDir pntdir , 
                             std::string irf , std::string caldb , 
                             double tstart = 0.0 , double tinter = 1800.0 , 
                             double deadc = 0.95 ,
                             double emin = 0.01 , double emax = 100.0 , 
-                            double rad = 5.0 , 
+                            int enbins = 20 , double rad = 5.0 , 
                             std::string id = "001" )
 {
     
@@ -182,9 +299,9 @@ int main( int argc , char* argv[] )
 {
 
     // Check the number of arguments in the command line
-    if ( ( argc != 12 ) ) {
+    if ( ( argc != 16 ) ) {
         
-        // If number of arguments is different from 6
+        // If number of arguments is different from 15
         // print message and exit
         std::cout << "You must check the number of arguments" << std::endl ;
         show_usage( argv[ 0 ] ) ;
@@ -209,7 +326,19 @@ int main( int argc , char* argv[] )
     double deadc        = strTodouble( argv[ 8 ] ) ;
     double emin         = strTodouble( argv[ 9 ] ) ;
     double emax         = strTodouble( argv[ 10 ] ) ;
-    double rad          = strTodouble( argv[ 11 ] ) ;
+    int enbins          = strToint( argv[ 11 ] ) ;
+    double rad          = strTodouble( argv[ 12 ] ) ;
+    std::string outpath = argv[ 13 ] ;
+    std::string obsname = argv[ 14 ] ;
+    int threads         = strToint( argv[ 15 ] ) ;
+
+    std::time_t  thistime     = std::time( 0 ) ;
+    std:tm *gmt_time          = std::gmtime( &thistime ) ;
+    unsigned long int thismjd = get_mjd( gmt_time ) ;
+
+    // Check if output directory exists. 
+    // If output path is not valid, then exit
+    checkdir( outpath ) ;
 
     // Print right ascensiond and declination got from command-line
     std::cout << std::setprecision( 4 ) << "Pointing at ( RA , Dec ) =  ( " 
@@ -248,6 +377,26 @@ int main( int argc , char* argv[] )
     // Set Direction to source position
     srcdir.radec_deg( srcRA , srcDeC ) ;
 
+    //  Check if distance between pointin and source centre
+    //  is greater tahn radius of source ROI. The last is
+    //  taking to be a 1 degree, but in the future, the
+    //  user will be able to pass as an option. :)
+    
+    double offset = pntdir.dist_deg( srcdir ) ;
+
+    if ( offset < 1.10 ) {
+        std::cout << "Sorry, the distance between the centers"
+                  << " of the source and the pointing are so"
+                  << " close to get background regions"
+                  << std::endl ;
+        exit( EXIT_FAILURE ) ;
+    } else if ( offset > 10.0 ) {
+        std::cout << "Sorry, the distance between the centers"
+                  << " of the source and the pointing are so"
+                  << " far to compute background regions"
+                  << std::endl ;
+    }
+
     // Print number of observation
     print_obs( 10 ) ;
 
@@ -255,11 +404,97 @@ int main( int argc , char* argv[] )
     GObservations obslist ;
 
     // CTA observation container
-    GCTAObservation myobs = single_obs( pntdir , irf , caldb , 0.0 , interval , 
-                                        deadc , emin , emax , rad , "0001"  ) ;
+    GCTAObservation myobs = single_obs( pntdir , irf , caldb , 0.0 , interval ,
+                                        deadc , emin , emax , enbins , 
+                                        rad , "0001"  ) ;
+
+    // Append GCTAObservation myobs to observation_list
+    obslist.append( myobs ) ;
+    // Save XML-definition file
+    obsname = outpath + "/" + obsname ;
+    obslist.save( obsname ) ;
+
+    /****************************************************************
+     *      In Order to pass all the arguments to ctobssim tool     *
+     *      and to avoid asking to the user for all the arguments   *
+     *      then, I am using the contruction method to pass an      *
+     *      array with all the options.                             *
+     *      As usual, the options are passed via:                   *
+     *          option=val_option                                   *
+     *      For detailed information, see ctobssim help.            *
+     ***************************************************************/
+    std::string thislist = "inobs=" + obsname ;
+    std::string inmodel  = "inmodel=" + xmlfile ;
+    std::string scaldb   = "caldb=" + caldb ;
+    std::string sirf     = "irf=" + irf ;
+    std::string edisp    = "edisp=no" ;
+    std::string chatter  = "chatter=4" ;
+    std::string outevent = "outevents=" + outpath 
+                           + "/" + source + "Events.fits" ;
+    std::string seed     = "seed=" + std::to_string( ( int ) std::time( 0 ) ) ;
+    std::string sra      = "ra=" + std::to_string( pntRA ) ;
+    std::string sdec     = "dec=" + std::to_string( pntDeC ) ;
+    std::string srad     = "rad=" + std::to_string( rad ) ;
+    std::string tmin     = "tmin=" + std::to_string( thismjd ) ;
+    std::string tmax     = "tmax=" + std::to_string( thismjd + interval ) ;
+    std::string semin    = "emin=" + std::to_string( emin ) ;
+    std::string semax    = "emax=" + std::to_string( emax ) ;
+    std::string sdeadc   = "deadc=" + std::to_string( deadc ) ;
+    std::string nthreads = "nthreads=" + std::to_string( threads ) ;
+    std::string logfile  = "logfile=" + outpath + "/" 
+                           + source + "ctobssim.log" ;
+    
+    //  Array of arguments with ctobssim options
+    char* thisargv[]     = { &thislist[ 0 ] ,
+                             &inmodel[ 0 ] ,
+                             &scaldb[ 0 ] ,
+                             &sirf[ 0 ] ,
+                             &edisp[ 0 ] ,
+                             &outevent[ 0 ] ,
+                             &seed[ 0 ] ,
+                             &sra[ 0 ] ,
+                             &sdec[ 0 ] ,
+                             &srad[ 0 ] ,
+                             &tmin[ 0 ] ,
+                             &tmax[ 0 ] ,
+                             &semin[ 0 ] ,
+                             &semax[ 0 ] ,
+                             &sdeadc[ 0 ] ,
+                             &nthreads[ 0 ] ,
+                             &chatter[ 0 ] , 
+                             &logfile[ 0 ] } ;
+    
+    int charsize         = ( sizeof thisargv) / ( sizeof thisargv[ 0 ] ) ;
+    
+    //  Initializaing ctobssim tool
+    ctobssim sim( charsize , thisargv ) ;
+    
+    //  Run and save of ctobssim events
+    sim.run() ;
+    sim.save() ;
+
+    const GObservation* simobs = sim.obs()[ 0 ] ;
+
+    //  The next section is based in csphagen script
+    //  But, I need to test some "new classes" and
+    //  I want to avoid compile all the source code
+    //  to see that I forget that I was using a pointer
+    //  :: :)
+    std::cout << "Calculating background regions" << std::endl ;
+
+    //  I will assume that there is only one background region
+    //  near to the source center that must be skipped.
+    //  Then, the number of background regions to start is 1 + Nskip
+    int Nskip  = 1 ;
+    int Nstart = 1 + Nskip ;
+    int Nlim   = 1 + 2 * Nskip ;
+
+    //  Angular separation between reflected regions
+    double alpha = 1.05 * 2.0 * rad / offset ;
 
     // Return
     return 0 ;
 
 }
+
 
