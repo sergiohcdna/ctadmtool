@@ -196,6 +196,7 @@ Usage: ./ONOFFAnalysis <args> CTA-relatedArguments:
 	emax     : (double) Maximum energy, in TeV
 	enbins   : (int)    Number of energy bins
 	rad      : (double) Radius of region of interest
+	srcrad   : (double) Radius of SRC-region of interest
 	outpath  : (string) Path to output directory
 	obsname  : (string) Name of the XML-file with all the
 	                    details about CTAObservation
@@ -220,7 +221,31 @@ prod3b-v2 \
 10.0 \
 40 \
 3.0 \
+1.0 \
 NGC1275Simulation \
 NGC1275ObsList.xml \
 8
 ```
+
+The script perform several safety checks at different moments. The most important is to check if the angular distance between the pointing and the source centers are neither too far nor too close to compute the off regions for background estimation. In the python script, this is performed by the csphagen script. In the code:
+
+```cpp
+    double offset = pntdir.dist_deg( srcdir ) ;
+
+    if ( offset < 1.05 * srcrad ) {
+        std::cout << "Sorry, the distance between the centers"
+                  << " of the source and the pointing are so"
+                  << " close to get background regions"
+                  << std::endl ;
+        exit( EXIT_FAILURE ) ;
+    } else if ( offset > 5.0 ) {
+        std::cout << "Sorry, the distance between the centers"
+                  << " of the source and the pointing are so"
+                  << " far to compute background regions"
+                  << std::endl ;
+        exit( EXIT_FAILURE ) ;
+    }
+
+```
+
+where ```pntdir``` and ```srcdir``` are the GSkyDir objects for the pointing of the ROI and the coordinates of the source.
