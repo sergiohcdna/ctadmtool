@@ -70,6 +70,7 @@ static void show_usage( std::string name )
               << "\temax     : (double) Maximum energy, in TeV\n"
               << "\tenbins   : (int)    Number of energy bins\n"
               << "\trad      : (double) Radius of region of interest\n"
+              << "\tsrcrad   : (double) Radius of SRC-region of interest\n"
               << "\toutpath  : (string) Path to output directory\n"
               << "\tobsname  : (string) Name of the XML-file with all the\n"
               << "\t                    details about CTAObservation\n"
@@ -267,7 +268,7 @@ GCTAObservation single_obs( GSkyDir pntdir ,
     GGti gti ;
     gti.append( GTime( tstart ) , GTime( tstart + tinter ) ) ;
 
-    // Setting energy bounds in TeV
+    //  Setting energy bounds in TeV
     GEbounds ebounds( GEnergy( emin , "TeV" ) , GEnergy( emax , "TeV" ) ) ;
 
     // GCTAEvents container for roi, gti, and ebounds objects
@@ -299,7 +300,7 @@ int main( int argc , char* argv[] )
 {
 
     // Check the number of arguments in the command line
-    if ( ( argc != 16 ) ) {
+    if ( ( argc != 17 ) ) {
         
         // If number of arguments is different from 15
         // print message and exit
@@ -328,9 +329,10 @@ int main( int argc , char* argv[] )
     double emax         = strTodouble( argv[ 10 ] ) ;
     int enbins          = strToint( argv[ 11 ] ) ;
     double rad          = strTodouble( argv[ 12 ] ) ;
-    std::string outpath = argv[ 13 ] ;
-    std::string obsname = argv[ 14 ] ;
-    int threads         = strToint( argv[ 15 ] ) ;
+    double srcrad       = strTodouble( argv[ 13 ] ) ;
+    std::string outpath = argv[ 14 ] ;
+    std::string obsname = argv[ 15 ] ;
+    int threads         = strToint( argv[ 16 ] ) ;
 
     std::time_t  thistime     = std::time( 0 ) ;
     std:tm *gmt_time          = std::gmtime( &thistime ) ;
@@ -367,7 +369,7 @@ int main( int argc , char* argv[] )
     
     // Declare GSkyDir for the source position
     GSkyDir srcdir ;
-    
+
     // Get source RA
     double srcRA  = src_roi -> at( 0 ).value() ;
     
@@ -384,17 +386,18 @@ int main( int argc , char* argv[] )
     
     double offset = pntdir.dist_deg( srcdir ) ;
 
-    if ( offset < 1.10 ) {
+    if ( offset < 1.05 * srcrad ) {
         std::cout << "Sorry, the distance between the centers"
                   << " of the source and the pointing are so"
                   << " close to get background regions"
                   << std::endl ;
         exit( EXIT_FAILURE ) ;
-    } else if ( offset > 10.0 ) {
+    } else if ( offset > 5.0 ) {
         std::cout << "Sorry, the distance between the centers"
                   << " of the source and the pointing are so"
                   << " far to compute background regions"
                   << std::endl ;
+        exit( EXIT_FAILURE ) ;
     }
 
     // Print number of observation
@@ -429,8 +432,8 @@ int main( int argc , char* argv[] )
     std::string sirf     = "irf=" + irf ;
     std::string edisp    = "edisp=no" ;
     std::string chatter  = "chatter=4" ;
-    std::string outevent = "outevents=" + outpath 
-                           + "/" + source + "Events.fits" ;
+    std::string out      = outpath + "/" + source + "Events.fits" ;
+    std::string outevent = "outevents=" + out ;
     std::string seed     = "seed=" + std::to_string( ( int ) std::time( 0 ) ) ;
     std::string sra      = "ra=" + std::to_string( pntRA ) ;
     std::string sdec     = "dec=" + std::to_string( pntDeC ) ;
@@ -473,24 +476,118 @@ int main( int argc , char* argv[] )
     sim.run() ;
     sim.save() ;
 
-    const GObservation* simobs = sim.obs()[ 0 ] ;
+    //  CTA-Observation
+    GCTAObservation* ctaobs = ( GCTAObservation* ) sim.obs()[ 0 ] ;
+
+    //  Get Energy bounds from observation in the simulation
+    GEbounds ebounds  = ctaobs -> ebounds() ;
+    GEnergy  thisemin = ebounds.emin() ;
+    GEnergy  thisemax = ebounds.emax() ;
+    
+    //  Create new log Energy bounds
+    GEbounds new_ebounds( enbins , thisemin , thisemax ) ;
+    std::cout << "New Energy bounds\n"
+              << new_ebounds << std::endl ;
+
+    //  Get true ebounds
+    GEnergy  true_emin( emin , "TeV" ) ;
+    GEnergy  true_emax( emax , "TeV" ) ;
+    GEbounds true_ebounds( enbins , true_emin , true_emax ) ;
 
     //  The next section is based in csphagen script
     //  But, I need to test some "new classes" and
     //  I want to avoid compile all the source code
     //  to see that I forget that I was using a pointer
     //  :: :)
-    std::cout << "Calculating background regions" << std::endl ;
+    std::cout << "\n\nCalculating background regions" << std::endl ;
+
+    //  Containers for ON & OFF-regions
+    GSkyRegions onregions ;
+    GSkyRegions offregions ;
+
+    //setting on region
+    GSkyRegionCircle srcreg( srcdir , srcrad ) ;
+    onregions.append( srcreg ) ;
 
     //  I will assume that there is only one background region
     //  near to the source center that must be skipped.
     //  Then, the number of background regions to start is 1 + Nskip
     int Nskip  = 1 ;
+    int Nmin   = 2 ;
     int Nstart = 1 + Nskip ;
     int Nlim   = 1 + 2 * Nskip ;
 
+    double posang = pntdir.posang_deg( srcdir ) ;
+
     //  Angular separation between reflected regions
-    double alpha = 1.05 * 2.0 * rad / offset ;
+    double alpha = 1.05 * 2.0 * srcrad / offset ;
+    
+    //Calculation of the number of background regions
+    int N = ( int ) ( 2.0 * gammalib::pi / alpha ) ;
+
+    //  If number of bkg regions is less than Nmin, then exit
+    if ( N < ( Nmin + Nlim ) ) {
+        std::cout << "\tThe number of reflected regions "
+                  << "for background estimation is "
+                  << "smaller than the minimum required."
+                  << "\n\t\t\tAborting..."
+                  << std::endl ;
+         exit( EXIT_FAILURE ) ;
+
+    }
+
+    std::cout << "Number of background regions "
+              << "computed: " << N - Nlim
+              << std::endl ;
+
+    //  Angular separation between regions
+    double a = 360.0 / N ;
+
+    //  Creating CIRCLE--off-regions
+    for ( int s = Nstart  ; s < ( N - Nskip ) ; ++s ) {
+        double dphi = s * a ;
+        GSkyDir ctrdir( pntdir ) ;
+        ctrdir.rotate_deg( posang + dphi , offset ) ;
+        GSkyRegionCircle thisoff( ctrdir , srcrad ) ;
+
+        offregions.append( thisoff ) ;
+    }
+
+    //  ONOFFModel
+    GModels onoffmodels ;
+
+    for( int index=0 ; index < models.size() ; ++index  ) {
+
+        //  Get model from initial models container
+        GModel* model = models.at( index ) ;
+
+        //  Get classname, check if is a bkg model,
+        //  and append OnOff to bkg model classname
+        std::string iname = model -> classname() ;
+
+        if ( iname.find( "CTA" ) != std::string::npos ) {
+            
+            std::cout << "\t\tCTA Background Model found"
+                      << "\n\t\tProcessing..."
+                      << std::endl ;
+
+            std::string thisinst = model -> instruments() ;
+            thisinst += "OnOff" ;
+            model -> instruments( thisinst ) ;
+        }
+
+        //  Append model to use for onofmodels container
+        onoffmodels.append( *model ) ;
+    }
+
+    //  Creating GCTAOnOffObservation :)
+    GCTAOnOffObservation onoffobs( *ctaobs , onoffmodels , source , 
+                                   true_ebounds , ebounds ,  
+                                   onregions , offregions , true ) ;
+    
+    onoffobs.statistic( "cstat" ) ;
+
+    std::cout << onoffobs << std::endl ;
 
     // Return
     return 0 ;
