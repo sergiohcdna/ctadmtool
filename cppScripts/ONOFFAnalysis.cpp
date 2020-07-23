@@ -269,7 +269,7 @@ GCTAObservation single_obs( GSkyDir pntdir ,
     gti.append( GTime( tstart ) , GTime( tstart + tinter ) ) ;
 
     //  Setting energy bounds in TeV
-    GEbounds ebounds( GEnergy( emin , "TeV" ) , GEnergy( emax , "TeV" ) ) ;
+    GEbounds ebounds( enbins , GEnergy( emin , "TeV" ) , GEnergy( emax , "TeV" ) ) ;
 
     // GCTAEvents container for roi, gti, and ebounds objects
     GCTAEventList events ;
@@ -407,12 +407,15 @@ int main( int argc , char* argv[] )
     GObservations obslist ;
 
     // CTA observation container
+    std::string id = "0001" ;
     GCTAObservation myobs = single_obs( pntdir , irf , caldb , 0.0 , interval ,
                                         deadc , emin , emax , enbins , 
-                                        rad , "0001"  ) ;
+                                        rad , id  ) ;
 
+    myobs.name( source ) ;
     // Append GCTAObservation myobs to observation_list
     obslist.append( myobs ) ;
+    obslist.models( models ) ;
     // Save XML-definition file
     obsname = outpath + "/" + obsname ;
     obslist.save( obsname ) ;
@@ -473,8 +476,7 @@ int main( int argc , char* argv[] )
     ctobssim sim( charsize , thisargv ) ;
     
     //  Run and save of ctobssim events
-    sim.run() ;
-    sim.save() ;
+    sim.execute() ;
 
     //  CTA-Observation
     GCTAObservation* ctaobs = ( GCTAObservation* ) sim.obs()[ 0 ] ;
@@ -486,8 +488,6 @@ int main( int argc , char* argv[] )
     
     //  Create new log Energy bounds
     GEbounds new_ebounds( enbins , thisemin , thisemax ) ;
-    std::cout << "New Energy bounds\n"
-              << new_ebounds << std::endl ;
 
     //  Get true ebounds
     GEnergy  true_emin( emin , "TeV" ) ;
@@ -586,9 +586,55 @@ int main( int argc , char* argv[] )
                                    onregions , offregions , true ) ;
     
     onoffobs.statistic( "cstat" ) ;
+    onoffobs.name( "ONOFF" + source ) ;
 
-    std::cout << onoffobs << std::endl ;
+    //  This part is to save the relevant fits files
+    //  Also, to create the Obs-List XML file
+    std::string onname  = outpath + "/" + source + "_pha_on.fits" ;
+    std::string offname = outpath + "/" + source + "_pha_off.fits" ;
+    std::string arfname = outpath + "/" + source + "_arf.fits" ;
+    std::string rmfname = outpath + "/" + source + "_rmf.fits" ;
 
+    GObservations onoffobslist ;
+    onoffobslist.append( onoffobs ) ;
+    onoffobslist.models( onoffmodels ) ;
+
+    //  Set background and response file names in On spectrum
+
+    onoffobs.on_spec().save( onname , true ) ;
+    onoffobs.off_spec().save( offname , true ) ;
+    onoffobs.arf().save( arfname , true ) ;
+    onoffobs.rmf().save( rmfname , true ) ;
+   
+    std::string onoffoutmodel = outpath + "/" + source + "onoffmodel.xml" ;
+    std::string onoffxmlobs   = outpath + "/" + source + "onoffobs.xml" ;
+    onoffobslist.models().save( onoffoutmodel ) ;
+
+    //  Save the xml file with observation-list definitions
+    //  I didn't find and obvious way to save directly from
+    //  the save method from GObservations.
+    //  The last is because, when I tried to access the GPha
+    //  object from GCTAOnOffObservation class, the GPha object
+    //  is a const-type object, then I can't call any method
+    //  trying to modify the object itself :)
+    GXml onoffxml ;
+    GXmlElement obs_list( "observation_list title=\"observation library\"" ) ;
+    GXmlElement onoff_obs( "observation name=\"" + source + "\" id=\"" 
+                     + id + "\" instrument=\"CTAOnOff\" statistic=\"cstat\"" ) ;
+    onoff_obs.append( GXmlElement( "parameter name=\"Pha_on\" file=\"" 
+                      + onname + "\"") ) ;
+    onoff_obs.append( GXmlElement( "parameter name=\"Pha_off\" file=\"" 
+                      + offname + "\"") ) ;
+    onoff_obs.append( GXmlElement( "parameter name=\"Arf\" file=\"" 
+                      + arfname + "\"") ) ;
+    onoff_obs.append( GXmlElement( "parameter name=\"Rmf\" file=\"" 
+                      + rmfname + "\"") ) ;
+    obs_list.append( onoff_obs ) ;
+    onoffxml.append( obs_list ) ;
+    onoffxml.save( onoffxmlobs ) ;
+
+    //  Save On and Off region files
+    
     // Return
     return 0 ;
 
