@@ -451,24 +451,12 @@ int main( int argc , char* argv[] )
                            + source + "ctobssim.log" ;
     
     //  Array of arguments with ctobssim options
-    char* thisargv[]     = { &thislist[ 0 ] ,
-                             &inmodel[ 0 ] ,
-                             &scaldb[ 0 ] ,
-                             &sirf[ 0 ] ,
-                             &edisp[ 0 ] ,
-                             &outevent[ 0 ] ,
-                             &seed[ 0 ] ,
-                             &sra[ 0 ] ,
-                             &sdec[ 0 ] ,
-                             &srad[ 0 ] ,
-                             &tmin[ 0 ] ,
-                             &tmax[ 0 ] ,
-                             &semin[ 0 ] ,
-                             &semax[ 0 ] ,
-                             &sdeadc[ 0 ] ,
-                             &nthreads[ 0 ] ,
-                             &chatter[ 0 ] , 
-                             &logfile[ 0 ] } ;
+    char* thisargv[]     = { &thislist[ 0 ] , &inmodel[ 0 ] , &scaldb[ 0 ] ,
+                             &sirf[ 0 ] , &edisp[ 0 ] , &outevent[ 0 ] ,
+                             &seed[ 0 ] , &sra[ 0 ] , &sdec[ 0 ] , &srad[ 0 ] ,
+                             &tmin[ 0 ] , &tmax[ 0 ] , &semin[ 0 ] ,
+                             &semax[ 0 ] , &sdeadc[ 0 ] , &nthreads[ 0 ] ,
+                             &chatter[ 0 ] ,  &logfile[ 0 ] } ;
     
     int charsize         = ( sizeof thisargv) / ( sizeof thisargv[ 0 ] ) ;
     
@@ -619,7 +607,7 @@ int main( int argc , char* argv[] )
     //  trying to modify the object itself :)
     GXml onoffxml ;
     GXmlElement obs_list( "observation_list title=\"observation library\"" ) ;
-    GXmlElement onoff_obs( "observation name=\"" + source + "\" id=\"" 
+    GXmlElement onoff_obs( "observation name=\"OnOff" + source + "\" id=\"" 
                      + id + "\" instrument=\"CTAOnOff\" statistic=\"cstat\"" ) ;
     onoff_obs.append( GXmlElement( "parameter name=\"Pha_on\" file=\"" 
                       + onname + "\"") ) ;
@@ -634,7 +622,39 @@ int main( int argc , char* argv[] )
     onoffxml.save( onoffxmlobs ) ;
 
     //  Save On and Off region files
+    std::string onregname  = outpath + "/" + source + "on.reg" ;
+    std::string offregname = outpath + "/" + source + "off.reg" ;
+    onregions.save( onregname ) ;
+    offregions.save( offregname ) ;
+
+    //  So, now it's time to compute the likelihood
     
+    ctlike like( onoffobslist ) ;
+    like.run() ;
+
+    GModels tmodels = like.obs().models() ;
+    GModelSky* srcmodel = ( GModelSky* ) tmodels[ source ] ;
+
+    for ( int i = 0; i < srcmodel -> spectral() -> size(); ++i ) {
+        GModelPar locpar = srcmodel -> spectral() -> at( i ) ;
+        std::string parname = locpar.name() ;
+        if ( locpar.is_free() ){
+            double value     = locpar.value() ;
+            double scale     = locpar.scale() ;
+            std::string unit = locpar.unit() ;
+            std::cout << parname << ":\t" 
+                      << value << " " 
+                      << unit << std::endl ;
+        }
+    }
+
+    GModelPar locpiv = srcmodel -> spectral() -> operator[]( "PivotEnergy" ) ;
+    GEnergy   pivotE( locpiv.value() / locpiv.scale() , "TeV" );
+    double fitted_flux = srcmodel -> spectral() -> eval( pivotE ) ;
+    std::cout << "Fitted flux is: " << fitted_flux << std::endl ;
+    double ts = srcmodel -> ts() ;
+    std::cout << "TS: " << std::endl ;
+
     // Return
     return 0 ;
 
