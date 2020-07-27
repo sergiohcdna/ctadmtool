@@ -318,7 +318,7 @@ ctobssim simobs( std::string obsname , std::string xmlmodel , std::string caldb 
      std::string s_inobs     = "inobs=" + obsname ;
      std::string s_inmodel   = "inmodel=" + xmlmodel ;
      std::string s_caldb     = "caldb=" + caldb ;
-     std::string s_irf       = "s_irf" + irf ;
+     std::string s_irf       = "irf=" + irf ;
      std::string s_edisp     = "edisp=no" ;
      std::string s_chatter   = "chatter=4" ;
      std::string s_outevents = "outevents=" + outname ;
@@ -374,7 +374,7 @@ ctlike obslike( std::string obsxml , GObservations obslist , std::string model ,
     std::string l_accuracy = "like_accuracy=" + std::to_string( accuracy ) ;
     std::string l_iters    = "max_iter=" + std::to_string( max_iters ) ;
     std::string l_fixspat_ = "fix_spat_for_ts=" + sfix_spat ;
-    std::string l_nthreads = "nthreads=" + std::to_string( threads ) ;
+    std::string l_nthreads = "nthreads=" + std::to_string( nthreads ) ;
     std::string l_logfile  = "logfile=" + logfile ;
 
     //  Array of arguments with ctobssim options
@@ -696,28 +696,13 @@ int main( int argc , char* argv[] )
     offregions.save( offregname ) ;
 
     //  So, now it's time to compute the likelihood
-    std::string l_inobs    = "inobs=" + onoffxmlobs ;
-    std::string l_inmodel  = "inmodel=" + onoffoutmodel ;
-    std::string l_caldb    = "caldb=" + caldb ;
-    std::string l_irf      = "irf=" + irf ;
-    std::string l_out      = outpath + "'" + source + "OnOffLike.xml" ;
-    std::string l_outmodel = "outmodel=" + l_out ;
-    std::string l_accuracy = "like_accuracy=" + std::to_string( 1.e-4 ) ;
-    std::string l_iters    = "max_iter=" + std::to_string( 100 ) ;
-    std::string l_fixspat_ = "fix_spat_for_ts=yes" ;
-    std::string l_nthreads = "nthreads=" + std::to_string( threads ) ;
-    std::string l_logfile  = "logfile=" + outpath + "/"
-                             + source + "ctlike.log" ;
+    std::string l_outmodel = outpath + "'" + source + "OnOffLike.xml" ;
+    std::string l_logfile  = outpath + "/" + source + "ctlike.log" ;
+    bool fixspat           = true ;
 
-    char* l_args [] = { &l_inobs[ 0 ] , &l_inmodel[ 0 ] , &l_caldb[ 0 ] ,
-                        &l_irf[ 0 ] , &l_outmodel[ 0 ] , 
-                        &l_accuracy[ 0 ] , &l_iters[ 0 ] , 
-                        &l_nthreads[ 0 ] , &l_logfile[ 0 ] } ;
-    int l_sargs     = ( sizeof l_args ) / ( sizeof l_args[ 0 ] ) ;
-    
-    ctlike like( l_sargs , l_args ) ;
-    like.obs( onoffobslist ) ;
-    like.execute() ;
+    ctlike like = obslike( onoffxmlobs , onoffobslist , onoffoutmodel,
+                           caldb , irf , l_outmodel , 1.e-4 , 100,
+                           fixspat , threads , l_logfile ) ;
 
     GModels tmodels = like.obs().models() ;
     GModelSky* srcmodel = ( GModelSky* ) tmodels[ source ] ;
