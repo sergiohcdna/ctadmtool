@@ -296,6 +296,26 @@ GCTAObservation single_obs( GSkyDir pntdir ,
 
 }
 
+/****************************************************************
+ *      Create ctobssim object and run simulation               *
+ *      Required parameters:                                    *
+ *          - obsname   : (string)  XML obs-definition file     *
+ *          - xmlmodel  : (string)  XML source model            *
+ *          - caldb     : (string)  CTA-calibration database    *
+ *          - irf       : (string)  CTA-IRF                     *
+ *          - outname   : (string)  Output Event fits           *
+ *          - seed      : (int)     Seed for random gen         *
+ *          - pntRA     : (double)  pointing RA in degrees      *
+ *          - pntDec    : (double)  poiniting Dec in degrees    *
+ *          - pntrad    : (double)  radius of ROI               *
+ *          - tmin      : (ul int)  obs-Start time (MJD)        *
+ *          - tmax      : (ul int)  obs-End time (MJD)          *
+ *          - emin      : (double)  Minimum Energy (TeV)        *
+ *          - emax      : (double)  Maximum Energy (TeV)        *
+ *          - deadc     : (double)  Deadtime (0-1)              *
+ *          - nthreads  : (int)     Number of threads (par)     *
+ *          - logfile   : (string)  Ouput logfile               *
+ ***************************************************************/
 ctobssim simobs( std::string obsname , std::string xmlmodel , std::string caldb ,
                  std::string irf ,     std::string outname ,  int seed ,
                  double pntRA ,        double pntDec ,        double pntrad ,
@@ -355,6 +375,21 @@ ctobssim simobs( std::string obsname , std::string xmlmodel , std::string caldb 
 
 }
 
+/************************************************************************
+ *      Create ctlike object and run likelihood calculation             *
+ *      Required parameters:                                            *
+ *          - obsxml    : (string)          XML obs-definition file     *
+ *          - obslit    : (GObservations)   Obs-list object             *
+ *          - model     : (string)          XML model                   *
+ *          - caldb     : (string)          CTA-calibration database    *
+ *          - irf       : (string)          CTA-IRF                     *
+ *          - outmodel  : (string)          XML out-model file          *
+ *          - accuracy  : (double)          Accuraccy for calculations  *
+ *          - max_iters : (int)             Maximum number of iters     *
+ *          - fix_spat  : (bool)            Fix spatial model?          *
+ *          - nthreads  : (int)             Number of threads (par)     *
+ *          - logfile   : (string)          Ouput logfile               *
+ ***********************************************************************/
 ctlike obslike( std::string obsxml , GObservations obslist , std::string model ,
                 std::string caldb , std::string irf , std::string outmodel ,
                 double accuracy , int max_iters , bool fix_spat ,
