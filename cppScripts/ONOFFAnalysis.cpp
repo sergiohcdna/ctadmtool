@@ -355,6 +355,50 @@ ctobssim simobs( std::string obsname , std::string xmlmodel , std::string caldb 
 
 }
 
+ctlike obslike( std::string obsxml , GObservations obslist , std::string model ,
+                std::string caldb , std::string irf , std::string outmodel ,
+                double accuracy , int max_iters , bool fix_spat ,
+                int nthreads , std::string logfile )
+{
+    //  So, now it's time to compute the likelihood
+    std::string sfix_spat = "no" ;
+    if ( fix_spat ) {
+        sfix_spat = "yes" ;
+    }
+
+    std::string l_inobs    = "inobs=" + obsxml ;
+    std::string l_inmodel  = "inmodel=" + model ;
+    std::string l_caldb    = "caldb=" + caldb ;
+    std::string l_irf      = "irf=" + irf ;
+    std::string l_outmodel = "outmodel=" + outmodel ;
+    std::string l_accuracy = "like_accuracy=" + std::to_string( accuracy ) ;
+    std::string l_iters    = "max_iter=" + std::to_string( max_iters ) ;
+    std::string l_fixspat_ = "fix_spat_for_ts=" + sfix_spat ;
+    std::string l_nthreads = "nthreads=" + std::to_string( threads ) ;
+    std::string l_logfile  = "logfile=" + logfile ;
+
+    //  Array of arguments with ctobssim options
+    char* l_args [] = { &l_inobs[ 0 ] , &l_inmodel[ 0 ] , &l_caldb[ 0 ] ,
+                        &l_irf[ 0 ] , &l_outmodel[ 0 ] ,
+                        &l_accuracy[ 0 ] , &l_iters[ 0 ] , 
+                        &l_nthreads[ 0 ] , &l_logfile[ 0 ] } ;
+    int l_sargs     = ( sizeof l_args ) / ( sizeof l_args[ 0 ] ) ;
+
+    //  Initializaing ctobssim tool
+    ctlike like( l_sargs , l_args ) ;
+
+    //  At this point, I don't know why I must to set the observation
+    //  if I already pass an observation-list file, :)
+    like.obs( obslist ) ;
+
+    //  Execute...
+    like.execute() ;
+
+    //  Return the object after the fit
+    return like ;
+
+}
+
 int main( int argc , char* argv[] )
 {
 
