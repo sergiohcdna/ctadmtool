@@ -296,6 +296,65 @@ GCTAObservation single_obs( GSkyDir pntdir ,
 
 }
 
+ctobssim simobs( std::string obsname , std::string xmlmodel , std::string caldb ,
+                 std::string irf ,     std::string outname ,  int seed ,
+                 double pntRA ,        double pntDec ,        double pntrad ,
+                 unsigned long int tmin ,            
+                 unsigned long int tmax ,             
+                 double emin ,         double emax ,         
+                 double deadc ,        int nthreads ,
+                 std::string logfile )
+{
+    /****************************************************************
+     *      In Order to pass all the arguments to ctobssim tool     *
+     *      and to avoid asking to the user for all the arguments   *
+     *      then, I am using the contruction method to pass an      *
+     *      array with all the options.                             *
+     *      As usual, the options are passed via:                   *
+     *          option=val_option                                   *
+     *      For detailed information, see ctobssim help.            *
+     ***************************************************************/
+
+     std::string s_inobs     = "inobs=" + obsname ;
+     std::string s_inmodel   = "inmodel=" + xmlmodel ;
+     std::string s_caldb     = "caldb=" + caldb ;
+     std::string s_irf       = "s_irf" + irf ;
+     std::string s_edisp     = "edisp=no" ;
+     std::string s_chatter   = "chatter=4" ;
+     std::string s_outevents = "outevents=" + outname ;
+     std::string s_seed      = "seed=" + std::to_string( seed ) ;
+     std::string s_ra        = "ra=" + std::to_string( pntRA ) ;
+     std::string s_dec       = "dec=" + std::to_string( pntDec ) ;
+     std::string s_rad       = "rad=" + std::to_string( pntrad ) ;
+     std::string s_tmin      = "tmin=" + std::to_string( tmin ) ;
+     std::string s_tmax      = "tmax=" + std::to_string( tmax ) ;
+     std::string s_emin      = "emin=" + std::to_string( emin ) ;
+     std::string s_emax      = "emax=" + std::to_string( emax ) ;
+     std::string s_deadc     = "deadc=" + std::to_string( deadc ) ;
+     std::string s_nthreads  = "nthreads=" + std::to_string( nthreads ) ;
+     std::string s_logfile   = "logfile=" + logfile ;
+
+     //  Array of arguments with ctobssim options
+     char* s_args [] = { &s_inobs[ 0 ] , &s_inmodel[ 0 ] , &s_caldb[ 0 ] ,
+                         &s_irf[ 0 ] , &s_edisp[ 0 ] , &s_outevents[ 0 ] ,
+                         &s_seed[ 0 ] , &s_ra[ 0 ] , &s_dec[ 0 ] ,
+                         &s_rad[ 0 ] , &s_tmin[ 0 ] , &s_tmax[ 0 ] ,
+                         &s_emin[ 0 ] , &s_emax[ 0 ] , &s_deadc[ 0 ] ,
+                         &s_nthreads[ 0 ] , &s_chatter[ 0 ] , &s_logfile[ 0 ]
+                       } ;
+    int s_sargs      = ( sizeof s_args ) / ( sizeof s_args[ 0 ] ) ;
+
+    //  Initializaing ctobssim tool
+    ctobssim sim( s_sargs , s_args ) ;
+
+    //  Run and save of ctobssim events
+    sim.execute() ;
+
+    //  Return ctobssim object
+    return sim ;
+
+}
+
 int main( int argc , char* argv[] )
 {
 
@@ -337,6 +396,7 @@ int main( int argc , char* argv[] )
     std::time_t  thistime     = std::time( 0 ) ;
     std:tm *gmt_time          = std::gmtime( &thistime ) ;
     unsigned long int thismjd = get_mjd( gmt_time ) ;
+    unsigned long int tmax    = thismjd + interval ;
 
     // Check if output directory exists. 
     // If output path is not valid, then exit
@@ -409,8 +469,8 @@ int main( int argc , char* argv[] )
     // CTA observation container
     std::string id = "0001" ;
     GCTAObservation myobs = single_obs( pntdir , irf , caldb , 0.0 , interval ,
-                                        deadc , emin , emax , enbins , 
-                                        rad , id  ) ;
+                                        deadc , emin , emax , 
+                                        enbins , rad , id  ) ;
 
     myobs.name( source ) ;
     // Append GCTAObservation myobs to observation_list
@@ -420,51 +480,14 @@ int main( int argc , char* argv[] )
     obsname = outpath + "/" + obsname ;
     obslist.save( obsname ) ;
 
-    /****************************************************************
-     *      In Order to pass all the arguments to ctobssim tool     *
-     *      and to avoid asking to the user for all the arguments   *
-     *      then, I am using the contruction method to pass an      *
-     *      array with all the options.                             *
-     *      As usual, the options are passed via:                   *
-     *          option=val_option                                   *
-     *      For detailed information, see ctobssim help.            *
-     ***************************************************************/
-    std::string thislist = "inobs=" + obsname ;
-    std::string inmodel  = "inmodel=" + xmlfile ;
-    std::string scaldb   = "caldb=" + caldb ;
-    std::string sirf     = "irf=" + irf ;
-    std::string edisp    = "edisp=no" ;
-    std::string chatter  = "chatter=4" ;
-    std::string out      = outpath + "/" + source + "Events.fits" ;
-    std::string outevent = "outevents=" + out ;
-    std::string seed     = "seed=" + std::to_string( ( int ) std::time( 0 ) ) ;
-    std::string sra      = "ra=" + std::to_string( pntRA ) ;
-    std::string sdec     = "dec=" + std::to_string( pntDeC ) ;
-    std::string srad     = "rad=" + std::to_string( rad ) ;
-    std::string tmin     = "tmin=" + std::to_string( thismjd ) ;
-    std::string tmax     = "tmax=" + std::to_string( thismjd + interval ) ;
-    std::string semin    = "emin=" + std::to_string( emin ) ;
-    std::string semax    = "emax=" + std::to_string( emax ) ;
-    std::string sdeadc   = "deadc=" + std::to_string( deadc ) ;
-    std::string nthreads = "nthreads=" + std::to_string( threads ) ;
-    std::string logfile  = "logfile=" + outpath + "/" 
-                           + source + "ctobssim.log" ;
+    //  Run simulation
     
-    //  Array of arguments with ctobssim options
-    char* thisargv[]     = { &thislist[ 0 ] , &inmodel[ 0 ] , &scaldb[ 0 ] ,
-                             &sirf[ 0 ] , &edisp[ 0 ] , &outevent[ 0 ] ,
-                             &seed[ 0 ] , &sra[ 0 ] , &sdec[ 0 ] , &srad[ 0 ] ,
-                             &tmin[ 0 ] , &tmax[ 0 ] , &semin[ 0 ] ,
-                             &semax[ 0 ] , &sdeadc[ 0 ] , &nthreads[ 0 ] ,
-                             &chatter[ 0 ] ,  &logfile[ 0 ] } ;
-    
-    int charsize         = ( sizeof thisargv) / ( sizeof thisargv[ 0 ] ) ;
-    
-    //  Initializaing ctobssim tool
-    ctobssim sim( charsize , thisargv ) ;
-    
-    //  Run and save of ctobssim events
-    sim.execute() ;
+    int seed            = ( int ) std::time( 0 ) ;
+    std::string logfile = outpath + "/" + source + "ctobssim.log" ;
+    std::string outname = outpath + "/" + source + "Events.fits" ;
+    ctobssim sim = simobs( obsname , xmlfile , caldb , irf , outname ,
+                           seed , pntRA , pntDeC , rad , thismjd , tmax , 
+                           emin , emax , deadc , threads , logfile ) ;
 
     //  CTA-Observation
     GCTAObservation* ctaobs = ( GCTAObservation* ) sim.obs()[ 0 ] ;
@@ -565,6 +588,7 @@ int main( int argc , char* argv[] )
         }
 
         //  Append model to use for onofmodels container
+        model -> tscalc( true ) ;
         onoffmodels.append( *model ) ;
     }
 
@@ -628,9 +652,28 @@ int main( int argc , char* argv[] )
     offregions.save( offregname ) ;
 
     //  So, now it's time to compute the likelihood
+    std::string l_inobs    = "inobs=" + onoffxmlobs ;
+    std::string l_inmodel  = "inmodel=" + onoffoutmodel ;
+    std::string l_caldb    = "caldb=" + caldb ;
+    std::string l_irf      = "irf=" + irf ;
+    std::string l_out      = outpath + "'" + source + "OnOffLike.xml" ;
+    std::string l_outmodel = "outmodel=" + l_out ;
+    std::string l_accuracy = "like_accuracy=" + std::to_string( 1.e-4 ) ;
+    std::string l_iters    = "max_iter=" + std::to_string( 100 ) ;
+    std::string l_fixspat_ = "fix_spat_for_ts=yes" ;
+    std::string l_nthreads = "nthreads=" + std::to_string( threads ) ;
+    std::string l_logfile  = "logfile=" + outpath + "/"
+                             + source + "ctlike.log" ;
+
+    char* l_args [] = { &l_inobs[ 0 ] , &l_inmodel[ 0 ] , &l_caldb[ 0 ] ,
+                        &l_irf[ 0 ] , &l_outmodel[ 0 ] , 
+                        &l_accuracy[ 0 ] , &l_iters[ 0 ] , 
+                        &l_nthreads[ 0 ] , &l_logfile[ 0 ] } ;
+    int l_sargs     = ( sizeof l_args ) / ( sizeof l_args[ 0 ] ) ;
     
-    ctlike like( onoffobslist ) ;
-    like.run() ;
+    ctlike like( l_sargs , l_args ) ;
+    like.obs( onoffobslist ) ;
+    like.execute() ;
 
     GModels tmodels = like.obs().models() ;
     GModelSky* srcmodel = ( GModelSky* ) tmodels[ source ] ;
@@ -653,7 +696,9 @@ int main( int argc , char* argv[] )
     double fitted_flux = srcmodel -> spectral() -> eval( pivotE ) ;
     std::cout << "Fitted flux is: " << fitted_flux << std::endl ;
     double ts = srcmodel -> ts() ;
-    std::cout << "TS: " << std::endl ;
+    std::cout << "TS: " << ts << std::endl ;
+
+    std::cout << like.obs() << std::endl ;
 
     // Return
     return 0 ;
