@@ -541,6 +541,52 @@ GSkyRegions get_offregions( GSkyDir pnt , GSkyDir src , double srcrad ,
 
 }
 
+GObservations onofflist( GCTAObservation* ctaobs , 
+                         GSkyDir srcdir , GSkyDir pntdir ,
+                         int enbins ,
+                         bool save ,
+                         int Nskip , int Nmin
+                         std::string outpath ,
+                         std::string source )
+{
+
+    //  Get Energy bounds from observation in the simulation
+    GEbounds ebounds  = ctaobs -> ebounds() ;
+    GEnergy  thisemin = ebounds.emin() ;
+    GEnergy  thisemax = ebounds.emax() ;
+
+    //  Create new log Energy bounds
+    GEbounds new_ebounds( enbins , thisemin , thisemax ) ;
+
+    //  Get true ebounds. I think I must update this section... :)
+    //  So, I put the basic template to generate this object
+    GEnergy  true_emin( emin , "TeV" ) ;
+    GEnergy  true_emax( emax , "TeV" ) ;
+    GEbounds true_ebounds( enbins , true_emin , true_emax ) ;
+
+    //  The next section is based in csphagen script
+    //  But, I need to test some "new classes" and
+    //  I want to avoid compile all the source code
+    //  to see that I forget that I was using a pointer
+    //  :: :)
+    std::cout << "\n\nCalculating background regions" << std::endl ;
+    
+    //  Name for on and off regions (ds9 files)
+    std::string onregname  = outpath + "/" + source + "on.reg" ;
+    std::string offregname = outpath + "/" + source + "off.reg" ;
+
+    //  Containers for ON & OFF-regions
+    GSkyRegions onregions  = get_onregions( srcdir , srcrad ,
+                                            save , onregname ) ;
+    GSkyRegions offregions = get_offregions( pntdir , srcdir , srcrad ,
+                                             Nskip , Nmin ,
+                                             save , offregname ) ;
+
+    //  ONOFFModel
+    GModels onoffmodels ;
+
+}
+
 int main( int argc , char* argv[] )
 {
 
