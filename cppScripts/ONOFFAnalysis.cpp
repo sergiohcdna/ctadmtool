@@ -434,13 +434,100 @@ ctlike obslike( std::string obsxml , GObservations obslist , std::string model ,
 
 }
 
+GSkyRegions get_onregions( GSkyDir srcdir, double srcrad , 
+                           bool save=false , std::string fname="" )
+{
+    //  Container for On-region
+    GSkyRegions on ;
+
+    //  Setting circle region
+    GSkyRegionCircle reg( srcdir , srcrad ) ;
+
+    on.append( reg ) ;
+
+    if( save and ( fname.size() > 0 ) ) {
+        on.save( fname )
+    } else{
+        std::cout << "Sky (on) region not saved" << std::endl ;
+    }
+
+    //  Return skyregion
+    return on ;
+}
+
+GSkyRegions get_offregions( GSkyDir pnt , GskyDir src , double srcrad ,
+                            int Nskip = 1 , int Nmin=2 
+                            bool save=false , std::string fname="" )
+{
+    //  Container for Off-regions
+    GSkyRegions off ;
+
+    //  Setting conditions to compute number of circle off regions
+    int Nstart    = 1 + Nskip ;
+    int Nlim      = 1 + 2 * Nskip ;
+
+    //  Distance between pointing and center of source
+    double offset = pntdir.dist_deg( srcdir ) ;
+
+    //  Compute position angle between sky directions in degrees
+    double posang = pnt.posang_deg( src ) ;
+
+    //  Angular separation between reflected regions
+    double alpha  = 1.05 * 2.0 * srcrad / offset ;
+
+    //Calculation of the number of background regions
+    int N = ( int ) ( 2.0 * gammalib::pi / alpha ) ;
+
+    //  If number of bkg regions is less than Nmin, then exit
+    if ( N < ( Nmin + Nlim ) ) {
+        std::cout << "\tThe number of reflected regions "
+                  << "for background estimation is "
+                  << "smaller than the minimum required."
+                  << "\n\t\t\tAborting..."
+                  << std::endl ;
+        exit( EXIT_FAILURE ) ;
+    }
+
+    std::cout << "Number of background regions "
+              << "computed: " << N - Nlim
+              << std::endl ;
+
+    //  Angular separation between regions
+    double a        = 360.0 / N ;
+    double dphi_max = 360.0 - a * ( 1 + Nskip ) ;
+    double dphi     = a ;
+
+    //  Creating CIRCLE--off-regions
+    while ( dphi < dphi_max ) {
+        GSkyDir ctrdir( pntdir ) ;
+        ctrdir.rotate_deg( posang + dphi , offset ) ;
+        GSkyRegionCircle thisoff( ctrdir , srcrad ) ;
+
+        //  Append offregion to container
+        off.append( thisoff ) ;
+
+        dphi += a ;
+    }
+
+    //  Save the SkyRegions container
+    if ( save and ( fname.size() > 0 ) ) {
+        off.save( fname ) ;
+    } else {
+        std::cout << "Sky (off) region not saved" << std::endl ;       
+    }
+
+    //  Return the SkyRegions container
+    return off ;
+
+}
+
 int main( int argc , char* argv[] )
 {
 
     // Check the number of arguments in the command line
     if ( ( argc != 17 ) ) {
         
-        // If number of arguments is different from 15
+        // If number of arguments is different from 17
         // print message and exit
         std::cout << "You must check the number of arguments" << std::endl ;
         show_usage( argv[ 0 ] ) ;
@@ -731,7 +818,7 @@ int main( int argc , char* argv[] )
     offregions.save( offregname ) ;
 
     //  So, now it's time to compute the likelihood
-    std::string l_outmodel = outpath + "'" + source + "OnOffLike.xml" ;
+    std::string l_outmodel = outpath + "/" + source + "OnOffLike.xml" ;
     std::string l_logfile  = outpath + "/" + source + "ctlike.log" ;
     bool fixspat           = true ;
 
