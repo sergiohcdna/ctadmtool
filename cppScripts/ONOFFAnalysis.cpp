@@ -541,13 +541,14 @@ GSkyRegions get_offregions( GSkyDir pnt , GSkyDir src , double srcrad ,
 
 }
 
-GObservations onofflist( GCTAObservation* ctaobs , 
-                         GSkyDir srcdir , GSkyDir pntdir ,
-                         int enbins ,
-                         bool save ,
-                         int Nskip , int Nmin
+GObservations onofflist( GCTAObservation* ctaobs , GModels models ,
+                         GSkyDir srcdir , GSkyDir pntdir , double srcrad ,
+                         int enbins , double emin , double emax ,
+                         bool save , int Nskip , int Nmin ,
                          std::string outpath ,
-                         std::string source )
+                         std::string source ,
+                         std::string onoffoutmodel ,
+                         std::string onoffxmlobs , std::string id="0001" )
 {
 
     //  Get Energy bounds from observation in the simulation
@@ -585,6 +586,82 @@ GObservations onofflist( GCTAObservation* ctaobs ,
     //  ONOFFModel
     GModels onoffmodels ;
 
+    for( int index = 0 ; index < models.size() ; ++index ){
+        
+        //  Get model from initial models container
+        GModel* model = models.at( index ) ;
+        
+        //  Get classname, check if is a bkg model,
+        //  and append OnOff to bkg model classname
+        std::string iname = model -> classname() ;
+
+        if( iname.find( "CTA" ) != std::string::npos ) {
+            std::cout << "\t\tCTA Background Model found"
+                      << "\n\t\tProcessing..."
+                      << std::endl ;
+
+            std::string thisint = model -> instruments() ;
+            thisint += "OnOff" ;
+            model -> instruments( thisint ) ;
+        }
+
+        //  Append model to use for onoffmodels container
+        model -> tscalc( true ) ;
+        onoffmodels.append( *model ) ;
+    }
+
+    //  Creating GCTAOnOffObservation :)
+    GCTAOnOffObservation onoffobs( *ctaobs , onoffmodels , source ,
+                                   true_ebounds , ebounds ,
+                                   onregions , offregions , true ) ;
+
+    onoffobs.statistic( "cstat" ) ;
+    onoffobs.name( "OnOff" + source ) ;
+
+    //  This part is to save the relevant fits files
+    //  Also, to create the Obs-List XML file
+    std::string onname  = outpath + "/" + source + "_pha_on.fits" ;
+    std::string offname = outpath + "/" + source + "_pha_off.fits" ;
+    std::string arfname = outpath + "/" + source + "_arf.fits" ;
+    std::string rmfname = outpath + "/" + source + "_rmf.fits" ;
+
+    GObservations onoffobslist ;
+    onoffobslist.append( onoffobs ) ;
+    onoffobslist.models( onoffmodels ) ;
+
+    //Save on and off file names
+    onoffobs.on_spec().save( onname , true ) ;
+    onoffobs.off_spec().save( offname , true ) ;
+    onoffobs.arf().save( arfname , true ) ;
+    onoffobs.rmf().save( rmfname , true ) ;
+
+    onoffobslist.models().save( onoffoutmodel ) ;
+
+    //  Save the xml file with observation-list definitions
+    //  I didn't find and obvious way to save directly from
+    //  the save method from GObservations.
+    //  The last is because, when I tried to access the GPha
+    //  object from GCTAOnOffObservation class, the GPha object
+    //  is a const-type object, then I can't call any method
+    //  trying to modify the object itself :)
+    GXml onoffxml ;
+    GXmlElement obs_list( "observation_list title=\"observation library\"" ) ;
+    GXmlElement onoff_obs( "observation name=\"OnOff" + source + "\" id=\""
+                     + id + "\" instrument=\"CTAOnOff\" statistic=\"cstat\"" ) ;
+    onoff_obs.append( GXmlElement( "parameter name=\"Pha_on\" file=\""
+                                   + onname + "\"") ) ;
+    onoff_obs.append( GXmlElement( "parameter name=\"Pha_off\" file=\""
+                      + offname + "\"") ) ;
+    onoff_obs.append( GXmlElement( "parameter name=\"Arf\" file=\""
+                      + arfname + "\"") ) ;
+    onoff_obs.append( GXmlElement( "parameter name=\"Rmf\" file=\""
+                                   + rmfname + "\"") ) ;
+    obs_list.append( onoff_obs ) ;
+    onoffxml.append( obs_list ) ;
+    onoffxml.save( onoffxmlobs ) ;
+
+    //  Return obslist container
+    return onoffobslist ;
 }
 
 int main( int argc , char* argv[] )
@@ -724,115 +801,20 @@ int main( int argc , char* argv[] )
     //  CTA-Observation
     GCTAObservation* ctaobs = ( GCTAObservation* ) sim.obs()[ 0 ] ;
 
-    //  Get Energy bounds from observation in the simulation
-    GEbounds ebounds  = ctaobs -> ebounds() ;
-    GEnergy  thisemin = ebounds.emin() ;
-    GEnergy  thisemax = ebounds.emax() ;
-    
-    //  Create new log Energy bounds
-    GEbounds new_ebounds( enbins , thisemin , thisemax ) ;
-
-    //  Get true ebounds
-    GEnergy  true_emin( emin , "TeV" ) ;
-    GEnergy  true_emax( emax , "TeV" ) ;
-    GEbounds true_ebounds( enbins , true_emin , true_emax ) ;
-
-    //  The next section is based in csphagen script
-    //  But, I need to test some "new classes" and
-    //  I want to avoid compile all the source code
-    //  to see that I forget that I was using a pointer
-    //  :: :)
-    std::cout << "\n\nCalculating background regions" << std::endl ;
-
-    std::string onregname  = outpath + "/" + source + "on.reg" ;
-    std::string offregname = outpath + "/" + source + "off.reg" ;
-
-    //  Containers for ON & OFF-regions
-    GSkyRegions onregions = get_onregions( srcdir , srcrad , 
-                                           true , onregname ) ;
-    GSkyRegions offregions = get_offregions( pntdir , srcdir , srcrad ,
-                                             1 , 2 , true , offregname ) ;
-    //  ONOFFModel
-    GModels onoffmodels ;
-
-    for( int index=0 ; index < models.size() ; ++index  ) {
-
-        //  Get model from initial models container
-        GModel* model = models.at( index ) ;
-
-        //  Get classname, check if is a bkg model,
-        //  and append OnOff to bkg model classname
-        std::string iname = model -> classname() ;
-
-        if ( iname.find( "CTA" ) != std::string::npos ) {
-            
-            std::cout << "\t\tCTA Background Model found"
-                      << "\n\t\tProcessing..."
-                      << std::endl ;
-
-            std::string thisinst = model -> instruments() ;
-            thisinst += "OnOff" ;
-            model -> instruments( thisinst ) ;
-        }
-
-        //  Append model to use for onofmodels container
-        model -> tscalc( true ) ;
-        onoffmodels.append( *model ) ;
-    }
-
-    //  Creating GCTAOnOffObservation :)
-    GCTAOnOffObservation onoffobs( *ctaobs , onoffmodels , source , 
-                                   true_ebounds , ebounds ,  
-                                   onregions , offregions , true ) ;
-    
-    onoffobs.statistic( "cstat" ) ;
-    onoffobs.name( "ONOFF" + source ) ;
-
-    //  This part is to save the relevant fits files
-    //  Also, to create the Obs-List XML file
-    std::string onname  = outpath + "/" + source + "_pha_on.fits" ;
-    std::string offname = outpath + "/" + source + "_pha_off.fits" ;
-    std::string arfname = outpath + "/" + source + "_arf.fits" ;
-    std::string rmfname = outpath + "/" + source + "_rmf.fits" ;
-
-    GObservations onoffobslist ;
-    onoffobslist.append( onoffobs ) ;
-    onoffobslist.models( onoffmodels ) ;
-
-    //  Set background and response file names in On spectrum
-
-    onoffobs.on_spec().save( onname , true ) ;
-    onoffobs.off_spec().save( offname , true ) ;
-    onoffobs.arf().save( arfname , true ) ;
-    onoffobs.rmf().save( rmfname , true ) ;
-   
+    //  Names for XML-output files
     std::string onoffoutmodel = outpath + "/" + source + "onoffmodel.xml" ;
     std::string onoffxmlobs   = outpath + "/" + source + "onoffobs.xml" ;
-    onoffobslist.models().save( onoffoutmodel ) ;
+    int Nskip = 1 ;
+    int Nmin  = 2 ;
 
-    //  Save the xml file with observation-list definitions
-    //  I didn't find and obvious way to save directly from
-    //  the save method from GObservations.
-    //  The last is because, when I tried to access the GPha
-    //  object from GCTAOnOffObservation class, the GPha object
-    //  is a const-type object, then I can't call any method
-    //  trying to modify the object itself :)
-    GXml onoffxml ;
-    GXmlElement obs_list( "observation_list title=\"observation library\"" ) ;
-    GXmlElement onoff_obs( "observation name=\"OnOff" + source + "\" id=\"" 
-                     + id + "\" instrument=\"CTAOnOff\" statistic=\"cstat\"" ) ;
-    onoff_obs.append( GXmlElement( "parameter name=\"Pha_on\" file=\"" 
-                      + onname + "\"") ) ;
-    onoff_obs.append( GXmlElement( "parameter name=\"Pha_off\" file=\"" 
-                      + offname + "\"") ) ;
-    onoff_obs.append( GXmlElement( "parameter name=\"Arf\" file=\"" 
-                      + arfname + "\"") ) ;
-    onoff_obs.append( GXmlElement( "parameter name=\"Rmf\" file=\"" 
-                      + rmfname + "\"") ) ;
-    obs_list.append( onoff_obs ) ;
-    onoffxml.append( obs_list ) ;
-    onoffxml.save( onoffxmlobs ) ;
-
+    //  Get GObservations container with onoff-observation
+    GObservations onoffobslist = onofflist( ctaobs , models , srcdir ,
+                                            pntdir , srcrad , enbins ,
+                                            emin , emax , true , Nskip ,
+                                            Nmin , outpath , source ,
+                                            onoffoutmodel ,
+                                            onoffxmlobs , id ) ;
+    
     //  So, now it's time to compute the likelihood
     std::string l_outmodel = outpath + "/" + source + "OnOffLike.xml" ;
     std::string l_logfile  = outpath + "/" + source + "ctlike.log" ;
