@@ -434,6 +434,14 @@ ctlike obslike( std::string obsxml , GObservations obslist , std::string model ,
 
 }
 
+/************************************************************************
+ *      Create on SkyRegions for CTAOnOffObservations                   *
+ *      Required parameters:                                            *
+ *          - srcdir    :   (GskyDir)   Sky direction to source         *
+ *          - srcrad    :   (double)    Radius of source                *
+ *          - save      :   (bool)      Save ds9 on-region file?        *
+ *          - fname     :   (string)    Name of on-region file          *
+************************************************************************/
 GSkyRegions get_onregions( GSkyDir srcdir, double srcrad , 
                            bool save=false , std::string fname="" )
 {
@@ -455,6 +463,18 @@ GSkyRegions get_onregions( GSkyDir srcdir, double srcrad ,
     return on ;
 }
 
+/************************************************************************
+ *      Create off SkyRegions for CTAOnOffObservations                  *
+ *      Required parameters:                                            *
+ *          - pnt       :   (GskyDir)   Sky direction to source         *
+ *          - src       :   (double)    Radius of source                *
+ *          - Nskip     :   (int)       Number of regions to skip       *
+ *                                      near to the center              *
+ *          - Nmin      :   (int)       Minimum number of regions       *
+ *                                      to create                       *
+ *          - save      :   (bool)      Save ds9 on-region file?        *
+ *          - fname     :   (string)    Name of on-region file          *
+************************************************************************/
 GSkyRegions get_offregions( GSkyDir pnt , GSkyDir src , double srcrad ,
                             int Nskip = 1 , int Nmin=2 , 
                             bool save=false , std::string fname="" )
