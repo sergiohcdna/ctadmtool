@@ -446,7 +446,7 @@ GSkyRegions get_onregions( GSkyDir srcdir, double srcrad ,
     on.append( reg ) ;
 
     if( save and ( fname.size() > 0 ) ) {
-        on.save( fname )
+        on.save( fname ) ;
     } else{
         std::cout << "Sky (on) region not saved" << std::endl ;
     }
@@ -455,8 +455,8 @@ GSkyRegions get_onregions( GSkyDir srcdir, double srcrad ,
     return on ;
 }
 
-GSkyRegions get_offregions( GSkyDir pnt , GskyDir src , double srcrad ,
-                            int Nskip = 1 , int Nmin=2 
+GSkyRegions get_offregions( GSkyDir pnt , GSkyDir src , double srcrad ,
+                            int Nskip = 1 , int Nmin=2 , 
                             bool save=false , std::string fname="" )
 {
     //  Container for Off-regions
@@ -467,7 +467,7 @@ GSkyRegions get_offregions( GSkyDir pnt , GskyDir src , double srcrad ,
     int Nlim      = 1 + 2 * Nskip ;
 
     //  Distance between pointing and center of source
-    double offset = pntdir.dist_deg( srcdir ) ;
+    double offset = pnt.dist_deg( src ) ;
 
     //  Compute position angle between sky directions in degrees
     double posang = pnt.posang_deg( src ) ;
@@ -499,7 +499,7 @@ GSkyRegions get_offregions( GSkyDir pnt , GskyDir src , double srcrad ,
 
     //  Creating CIRCLE--off-regions
     while ( dphi < dphi_max ) {
-        GSkyDir ctrdir( pntdir ) ;
+        GSkyDir ctrdir( pnt ) ;
         ctrdir.rotate_deg( posang + dphi , offset ) ;
         GSkyRegionCircle thisoff( ctrdir , srcrad ) ;
 
@@ -678,58 +678,14 @@ int main( int argc , char* argv[] )
     //  :: :)
     std::cout << "\n\nCalculating background regions" << std::endl ;
 
+    std::string onregname  = outpath + "/" + source + "on.reg" ;
+    std::string offregname = outpath + "/" + source + "off.reg" ;
+
     //  Containers for ON & OFF-regions
-    GSkyRegions onregions ;
-    GSkyRegions offregions ;
-
-    //setting on region
-    GSkyRegionCircle srcreg( srcdir , srcrad ) ;
-    onregions.append( srcreg ) ;
-
-    //  I will assume that there is only one background region
-    //  near to the source center that must be skipped.
-    //  Then, the number of background regions to start is 1 + Nskip
-    int Nskip  = 1 ;
-    int Nmin   = 2 ;
-    int Nstart = 1 + Nskip ;
-    int Nlim   = 1 + 2 * Nskip ;
-
-    double posang = pntdir.posang_deg( srcdir ) ;
-
-    //  Angular separation between reflected regions
-    double alpha = 1.05 * 2.0 * srcrad / offset ;
-    
-    //Calculation of the number of background regions
-    int N = ( int ) ( 2.0 * gammalib::pi / alpha ) ;
-
-    //  If number of bkg regions is less than Nmin, then exit
-    if ( N < ( Nmin + Nlim ) ) {
-        std::cout << "\tThe number of reflected regions "
-                  << "for background estimation is "
-                  << "smaller than the minimum required."
-                  << "\n\t\t\tAborting..."
-                  << std::endl ;
-         exit( EXIT_FAILURE ) ;
-
-    }
-
-    std::cout << "Number of background regions "
-              << "computed: " << N - Nlim
-              << std::endl ;
-
-    //  Angular separation between regions
-    double a = 360.0 / N ;
-
-    //  Creating CIRCLE--off-regions
-    for ( int s = Nstart  ; s < ( N - Nskip ) ; ++s ) {
-        double dphi = s * a ;
-        GSkyDir ctrdir( pntdir ) ;
-        ctrdir.rotate_deg( posang + dphi , offset ) ;
-        GSkyRegionCircle thisoff( ctrdir , srcrad ) ;
-
-        offregions.append( thisoff ) ;
-    }
-
+    GSkyRegions onregions = get_onregions( srcdir , srcrad , 
+                                           true , onregname ) ;
+    GSkyRegions offregions = get_offregions( pntdir , srcdir , srcrad ,
+                                             1 , 2 , true , offregname ) ;
     //  ONOFFModel
     GModels onoffmodels ;
 
@@ -810,12 +766,6 @@ int main( int argc , char* argv[] )
     obs_list.append( onoff_obs ) ;
     onoffxml.append( obs_list ) ;
     onoffxml.save( onoffxmlobs ) ;
-
-    //  Save On and Off region files
-    std::string onregname  = outpath + "/" + source + "on.reg" ;
-    std::string offregname = outpath + "/" + source + "off.reg" ;
-    onregions.save( onregname ) ;
-    offregions.save( offregname ) ;
 
     //  So, now it's time to compute the likelihood
     std::string l_outmodel = outpath + "/" + source + "OnOffLike.xml" ;
