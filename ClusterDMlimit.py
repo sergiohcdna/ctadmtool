@@ -34,16 +34,16 @@ if __name__ == '__main__':
         type=str ,\
         required=True ,
         metavar='Perseus' )
-    source.add_argument( '--ra' ,\
-        help='Position of the source: RA in degrees' ,\
-        type=float ,\
-        required=True ,\
-        metavar='47.0' )
-    source.add_argument( '--dec' ,\
+    source.add_argument( '--longitude' ,\
         help='Position of the source: Dec in degrees' ,\
         type=float ,\
         required=True ,\
-        metavar='39.0' )
+        metavar='-13.22' )
+    source.add_argument( '--latitude' ,\
+        help='Position of the source: RA in degrees' ,\
+        type=float ,\
+        required=True ,\
+        metavar='150.57' )
     source.add_argument( '--radius' ,\
         help='Angular extension of the source (in degrees)' ,\
         type=float ,\
@@ -89,8 +89,29 @@ if __name__ == '__main__':
     instrument.add_argument( '--irf' ,\
         help='Instrument Response Function for CTA' ,\
         type=str ,\
-        default='North_z20_average_5h' ,\
-        metavar='North_z20_average_5h' )
+        default='North_z20_5h' ,\
+        metavar='North_z20_5h' )
+    instrument.add_argument( '--coordsys' ,\
+        help='Coordinate system selected' ,\
+        type=str ,\
+        default='GAL' ,\
+        metavar='GAL' ,\
+        choices=[ 'GAL' , 'CEL' ] )
+    instrument.add_argument( '--pntlon' ,\
+        help='Pointing direction (Longitude in degrees)' ,\
+        type=float ,\
+        required=True ,\
+        metavar='-15.00' )
+    instrument.add_argument( '--pntlat' ,\
+        help='Ponting direction (Latitude in degrees)' ,\
+        type=float ,\
+        required=True ,\
+        metavar='153.00' )
+    instrument.add_argument( '--pntrad' ,\
+        help='Radius of obs ROI' ,\
+        type=float ,\
+        required=True ,\
+        metavar='4.5' )
     instrument.add_argument( '--hours' ,\
         help='Time for simulation of observation (in hours)' ,\
         type=float ,\
@@ -127,6 +148,11 @@ if __name__ == '__main__':
         required=False ,\
         default='./' ,\
         metavar='path/to/file/' )
+    instrument.add_argument( '--fitsfile' ,\
+        help='Name fo fits file' ,\
+        type=str ,\
+        required=True ,\
+        metavar='myfits.fits' )
 
 
     args = options.parse_args()
@@ -135,12 +161,21 @@ if __name__ == '__main__':
     auxMan.checkDir( args.outpath )
 
     #   Create model container
-    models = GModels( args.xmlmodel )
+    models = gammalib.GModels( args.xmlmodel )
 
     #   Setting the direction of the pointing
     #   This is needed to create the obs container
-    dir = GSkyDir()
-    dir.radec_deg( args.ra , args.dec )
+    dir = gammalib.GSkyDir()
+
+    #   Check the coordsys argument and set
+    #   the source position properly
+    if args.coordsys == 'GAL' :
+        dir.lb_deg( args.longitude , args.latitude )
+    elif args.coordsys == 'CEL' :
+        dir.radec_deg( args.longitude , args.latitude )
+    else :
+        print( 'Coordsystem unknown. Using default value' )
+        dir.lb_deg( args.longitude , args.latitude )
 
     #   Setting the duration of the obs container
     duration = args.hours * 3600.0
@@ -162,6 +197,48 @@ if __name__ == '__main__':
 
     channel_number_dic = { '5' : 'mumu' , '8':'tautau' , '11':'bb' , '15':'ww' }
     # Channels: tautau
+
+    #   Now, creating a fits file to save the results
+    #   All the information related to DM process,
+    #   mass, and channel used to compute the spectra;
+    #   is added to the header
+    #   The number of parameters to save is 5:
+    #       - run ID for the repetition
+    #       - Number of events in the obs container
+    #       - Upper-limit obtained for cross-section
+    #         or lifetime
+    #       - Actual scale factor obtained from the
+    #         ratio of the differential flux to the
+    #         theoretical flux
+    #       - TS obtained during the likelihood calc.
+
+    #   Creating the fits file
+    dmfits     = gammalib.GFits()
+
+    #   Creating table with rows equal to 
+    #   the number of sims
+    table      = gammalib.GFitsBinTable( args.nsims )
+
+    #   Creating columns for every parameter to save
+    col_runID  = gammalib.GFitsTableShortCol( 'RunID' , args.nsims )
+    col_events = gammalib.GFitsTableDoubleCol( 'ObsEvents'  , args.nsims )
+
+    if args.process == "decay" :
+
+        col_cs = gammalib.GFitsTableDoubleCol( 'LogLifetime' , args.nsims )
+    elif args.process == "annihilation" :
+
+        col_cs = gammalib.GFitsTableDoubleCol( 'LogCrossSection' , args.nsims )
+    else :
+
+        print( 'Unknown process' )
+        print( 'I will assume annihilation, but you can get\n\
+            the scale factor and compute the parameter of interest' )
+
+        col_cs = gammalib.GFitsTableDoubleCol( 'LogCrossSection' , args.nsims )
+
+    col_scale  = gammalib.GFitsTableDoubleCol( 'ScaleFactor' , args.nsims )
+    col_ts     = gammalib.GFitsTableDoubleCol( 'TS' , args.nsims )
 
     for sims in range( args.nsims ) :
         thisrunID = int( args.id ) + sims
@@ -204,14 +281,14 @@ if __name__ == '__main__':
         #   Minimum and maximum energy according to the DM process
         thiseref = 0.0 ; thisemax = 0.0 ;
         if args.process == 'decay' :
-            thiseref = args.mass * 0.9 / 2.
+            thiseref = args.mass * 0.5 / 2.
             thisemax = args.mass / 2.
         elif args.process == 'annihilation' :
-            thiseref = args.mass * 0.9
+            thiseref = args.mass * 0.5
             thisemax = args.mass
         else :
             print( 'Unknown process. I will assume DM annihilation' )
-            thiseref = args.mass * 0.9
+            thiseref = args.mass * 0.5
             thisemax = args.mass
         thisemin = 0.01
 
@@ -269,7 +346,7 @@ if __name__ == '__main__':
 
             onoffgen       = cscripts.csphagen()
 
-            onfoffname     = auxMan.createname( args.outpath , \
+            onoffname      = auxMan.createname( args.outpath , \
                 'ONOFFObs{:d}.xml'.format( thisrunID ) )
             onoffmodelname = auxMan.createname( args.outpath , \
                 'ONOFFModel{:d}.xml'.format( thisrunID ) )
@@ -287,12 +364,21 @@ if __name__ == '__main__':
             onoffgen[ 'emin' ]       = thisemin
             onoffgen[ 'emax' ]       = thisemax
             onoffgen[ 'enumbins' ]   = 10
-            onoffgen[ 'coordsys' ]   = 'CEL'
-            onoffgen[ 'ra' ]         = args.ra
-            onoffgen[ 'dec' ]        = args.dec
-            onoffgen[ 'rad' ]        = args.radius
+            onoffgen[ 'coordsys' ]   = args.coordsys
+            if args.coordsys == 'GAL' :
+                onoffgen[ 'glon' ]   = args.pntlon
+                onoffgen[ 'glat' ]   = args.pntlat
+            elif args.coordsys == 'CEL' :
+                onoffgen[ 'ra' ]     = args.pntlon
+                onoffgen[ 'dec' ]    = args.pntlat
+            else :
+                print( 'Unknow coordsystem. I will use default value' )
+                onoffgen[ 'glon' ]   = args.pntlon
+                onoffgen[ 'glat' ]   = args.pntlat
+            onoffgen[ 'rad' ]        = args.pntrad
             onoffgen[ 'bkgmethod' ]  = 'REFLECTED'
             onoffgen[ 'bkgregskip' ] = 0
+            onoffgen[ 'bkgregmin' ]  = 1
             onoffgen[ 'etruemin' ]   = thisemin
             onoffgen[ 'etruemax' ]   = thisemax
             onoffgen[ 'nthreads' ]   = 8
@@ -312,7 +398,7 @@ if __name__ == '__main__':
             like[ 'irf' ]           = args.irf
             like[ 'inmodel' ]       = onoffmodelname
             likeModelName           = auxMan.createname( args.outpath , \
-                'LikeOutModel{:d}.xml'.format( sim ) )
+                'LikeOutModel{:d}.xml'.format( thisrunID ) )
             like[ 'outmodel' ]      = likeModelName
             like[ 'like_accuracy' ] = 1.e-4
             like[ 'max_iter' ]      = 100
@@ -365,17 +451,27 @@ if __name__ == '__main__':
                 cs = sigma_v * scale
             print( '\t\tFlux: %.5e\n\t\tScale: %.5e\n\t\tPOI: %.5e\n' \
                 % ( flux , scale , cs ) )
-            file_name = args.name + '_' + args.process + '_' \
-                + str( args.channel ) + '_' \
-                + str( args.mass ) + 'TeV_' + str( thisrunID ) \
-                + '_' + str( args.hours ) + 'h_' + str( args.sigmav ) + '.txt'
-            file_name = os.path.join( args.outpath , file_name )
-            with open( file_name , 'a' ) as outfile:
-                outfile.write('%d\t%d\t%.5e\t%.5e\t%.5e\t%.5e\t%.5e\n' \
-                    % ( thisrunID , args.channel ,\
-                        obslist[0].events().number() ,\
-                        cs , scale , \
-                        ts , args.sigmav ) )
+
+            #   Then, set the different results
+            #   for every parameter
+            col_runID[ sims ]  = thisrunID
+            col_events[ sims ] = obslist[ 0 ].events().number()
+            col_cs[ sims ]     = math.log10( cs )
+            col_scale[ sims ]  = math.log10( scale )
+            col_ts[ sims ]     = ts
+
+            #file_name = args.name + '_' + args.process + '_' \
+            #    + str( args.channel ) + '_' \
+            #    + str( args.mass ) + 'TeV_' + str( thisrunID ) \
+            #    + '_' + str( args.hours ) + 'h_' + str( args.sigmav ) + '.txt'
+            #file_name = os.path.join( args.outpath , file_name )
+            #with open( file_name , 'a' ) as outfile:
+            #    outfile.write('%d\t%d\t%.5e\t%.5e\t%.5e\t%.5e\t%.5e\n' \
+            #        % ( thisrunID , args.channel ,\
+            #            obslist[0].events().number() ,\
+            #            cs , scale , \
+            #            ts , args.sigmav ) )
+
             # Free memory
             del limit
             del like
@@ -385,5 +481,51 @@ if __name__ == '__main__':
             del cube_name
         except RuntimeError:
             pass
+
+    #   Above, end of loop for simulations
+
+    #   Append columns to the table
+    table.append( col_runID )
+    table.append( col_events )
+    table.append( col_cs )
+    table.append( col_scale )
+    table.append( col_ts )
+
+    #   Now, create cards to save information
+    #   about the DM model
+    table.card( 'OBJECT' , args.name , 'Name of target' )
+
+    if args.process == 'decay' :
+
+        table.card( 'DMPROCESS' , args.process , 'Process... Dah!' )
+        table.card( 'REFCROSSSECTION' , math.log( args.sigmav ) ,\
+            'log10(sigmav/[cm**3/s])' , \
+            'Logarithmic Annihilation cross-section' )
+
+    elif args.process == 'annihilation' :
+
+        table.card( 'DMPROCESS' , args.process , 'Process... Dah!' )
+        table.card( 'REFLIFETIME' , math.log( args.sigmav ) ,\
+            'log10(tau/[s])' , \
+            'Logarithmic Decay Lifetime' )
+
+    else :
+
+        print( 'Unknown DM process' )
+        print( 'Assuming annihilation ... (?)' )
+        table.card( 'DMPROCESS' , 'Annihilation' , 'The actual process is ?' )
+
+    table.card( 'CHANNEL' , args.channel , \
+        'DM channel to generate gamma-rays' )
+    table.card( 'DMMASS' , args.mass , 'TeV' , 'Mass of DM Candidate' )
+    table.card( 'HOURS' , args.hours , 'h' , 'Observation Time' )
+
+    #   Then, append table to fits file
+    dmfits.append( table )
+
+    #   And save file
+    fits_file = auxMan.createname( args.outpath , args.fitsfile )
+    dmfits.saveto( fits_file , True )
+
     print( 'ok!' )
 
