@@ -17,7 +17,7 @@ from scipy.interpolate import RegularGridInterpolator
 
 import sys
 
-def pppcDM_EWinterp( channel ) :
+def pppcDM_EWinterp( fname , channel ) :
 
     #   Load data from PPPC4 tables
     #   The file is in the same
@@ -34,7 +34,6 @@ def pppcDM_EWinterp( channel ) :
     #   The tables used in this sript
     #   correspond to the data with
     #   electroweak corrections :)
-    fname = 'AtProduction_gammas.dat'
     data  = np.genfromtxt( fname , names=True , dtype=None )
 
     #   Tuple with column names
