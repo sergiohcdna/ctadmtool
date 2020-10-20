@@ -170,12 +170,12 @@ if __name__ == '__main__':
     #   Check the coordsys argument and set
     #   the source position properly
     if args.coordsys == 'GAL' :
-        dir.lb_deg( args.longitude , args.latitude )
+        dir.lb_deg( args.pntlon , args.pntlat )
     elif args.coordsys == 'CEL' :
-        dir.radec_deg( args.longitude , args.latitude )
+        dir.radec_deg( args.pntlon , args.pntlat )
     else :
         print( 'Coordsystem unknown. Using default value' )
-        dir.lb_deg( args.longitude , args.latitude )
+        dir.lb_deg( args.pntlon , args.pntlat )
 
     #   Setting the duration of the obs container
     duration = args.hours * 3600.0
@@ -264,7 +264,7 @@ if __name__ == '__main__':
             deadc=0.95 ,\
             emin=args.emin ,\
             emax=args.emax ,\
-            rad=args.radius ,\
+            rad=args.pntrad ,\
             irf=args.irf ,\
             caldb=args.prod ,\
             id=args.id, \
@@ -282,14 +282,15 @@ if __name__ == '__main__':
         thiseref = 0.0 ; thisemax = 0.0 ;
         if args.process == 'decay' :
             thiseref = args.mass * 0.5 / 2.
-            thisemax = args.mass / 2.
+            #thisemax = args.emax
         elif args.process == 'annihilation' :
             thiseref = args.mass * 0.5
-            thisemax = args.mass
+            #thisemax = args.emax
         else :
             print( 'Unknown process. I will assume DM annihilation' )
             thiseref = args.mass * 0.5
-            thisemax = args.mass
+
+        thisemax = args.emax
         thisemin = 0.01
 
         #   Create GEnergy objects
@@ -322,13 +323,13 @@ if __name__ == '__main__':
                 chatter=4 ,\
                 edisp=False ,\
                 seed=int( time.time() ) ,\
-                nbins=10 ,\
+                nbins=0 ,\
                 binsz=0.02 ,\
                 npix=100 ,\
                 outfile=cube_name )
 
-            print ( 'Number of Cube events: ' ,  obssim[ 0 ].events().size() , \
-                'Total photons: ' , obssim[ 0 ].events().size() )
+            print ( 'Number of Cube events: ' , \
+                obssim[ 0 ].events().size() )
 
             #   Creating OnOff observation library XML
 
@@ -365,44 +366,54 @@ if __name__ == '__main__':
             onoffgen[ 'emax' ]       = thisemax
             onoffgen[ 'enumbins' ]   = 10
             onoffgen[ 'coordsys' ]   = args.coordsys
+
             if args.coordsys == 'GAL' :
-                onoffgen[ 'glon' ]   = args.pntlon
-                onoffgen[ 'glat' ]   = args.pntlat
+                onoffgen[ 'glon' ]   = args.longitude
+                onoffgen[ 'glat' ]   = args.latitude
             elif args.coordsys == 'CEL' :
-                onoffgen[ 'ra' ]     = args.pntlon
-                onoffgen[ 'dec' ]    = args.pntlat
+                onoffgen[ 'ra' ]     = args.longitude
+                onoffgen[ 'dec' ]    = args.latitude
             else :
                 print( 'Unknow coordsystem. I will use default value' )
-                onoffgen[ 'glon' ]   = args.pntlon
-                onoffgen[ 'glat' ]   = args.pntlat
-            onoffgen[ 'rad' ]        = args.pntrad
+                onoffgen[ 'glon' ]   = args.longitude
+                onoffgen[ 'glat' ]   = args.latitude
+
+            onoffgen[ 'rad' ]        = args.radius
             onoffgen[ 'bkgmethod' ]  = 'REFLECTED'
             onoffgen[ 'bkgregskip' ] = 0
-            onoffgen[ 'bkgregmin' ]  = 1
+            onoffgen[ 'bkgregmin' ]  = 2
             onoffgen[ 'etruemin' ]   = thisemin
             onoffgen[ 'etruemax' ]   = thisemax
             onoffgen[ 'nthreads' ]   = 8
             onoffgen[ 'stack' ]      = False
             onoffgen[ 'prefix' ]     = prefix
 
+            onoffgen.logFileOpen()
+
             onoffgen.execute()
+
+            print ( 'Number of Cube events: ' , \
+                onoffgen.obs()[ 0 ] )
 
             # Optimize forDM analysis
             print ( '\nDM fitting...' )
             like                    = ctools.ctlike()
-            like[ 'inobs' ]         = onoffname
+            like[ 'inobs' ]         = obsname
             like[ 'expcube' ]       = "NONE"
             like[ 'psfcube' ]       = "NONE"
             like[ 'bkgcube' ]       = "NONE"
             like[ 'caldb' ]         = args.prod
             like[ 'irf' ]           = args.irf
-            like[ 'inmodel' ]       = onoffmodelname
+            like[ 'inmodel' ]       = args.xmlmodel
             likeModelName           = auxMan.createname( args.outpath , \
                 'LikeOutModel{:d}.xml'.format( thisrunID ) )
             like[ 'outmodel' ]      = likeModelName
             like[ 'like_accuracy' ] = 1.e-4
             like[ 'max_iter' ]      = 100
             like[ 'nthreads' ]      = 8
+
+            like.logFileOpen()
+
             like.execute()
 
             models_fit = like.obs().models();
@@ -420,9 +431,9 @@ if __name__ == '__main__':
 
             print ( '\nDM calc upper limits... ' )
             limit                = ctools.ctulimit()
-            limit[ 'inobs' ]     = onoffname
+            limit[ 'inobs' ]     = obsname
             limit[ 'srcname' ]   = args.name
-            limit[ 'inmodel' ]   = onoffmodelname
+            limit[ 'inmodel' ]   = args.xmlmodel
             limit[ 'expcube' ]   = 'NONE'
             limit[ 'psfcube' ]   = 'NONE'
             limit[ 'bkgcube' ]   = 'NONE'
@@ -432,6 +443,9 @@ if __name__ == '__main__':
             limit[ 'caldb' ]     = args.prod
             limit[ 'irf' ]       = args.irf
             limit[ 'statistic' ] = 'DEFAULT'
+
+            limit.logFileOpen()
+
             limit.run()
 
             print ( '\nRESULTS:' )

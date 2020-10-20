@@ -5,9 +5,9 @@
 #       python package :)
 ##############################################
 #       shkdna. June 12, 2020
+#       shkdna, Sep, 2020, dminterpol
 ##############################################
 
-__all__ = [ 'myCTAfuncs' , 'mycsspec' , 'auxMan' ]
-
-
+__all__ = [ 'myCTAfuncs' , 'mycsspec' , 'auxMan' ,\
+            'dminterpol' ]
 
