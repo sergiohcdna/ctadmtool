@@ -11,6 +11,7 @@
 
 import os
 import sys
+import time
 
 #   CURSOR_UP_ONE     : Move the cursor one line above
 #   ERASE_LINE        : keyword command to erase current line
