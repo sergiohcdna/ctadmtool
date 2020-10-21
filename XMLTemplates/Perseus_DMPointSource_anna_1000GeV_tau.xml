@@ -1,8 +1,8 @@
 <?xml version="1.0" standalone="no"?>
 <source_library title="source library">
-    <source name="Perseus" type="PointSource">
+    <source name="Perseus" type="PointSource" tscalc="1" >
         <spectrum type="FileFunction" file="$MYXMLS/DMSpectrum/annihilation/tau/1000GeV/Perseus/spectra_CIRELLI11_EW_GAMMA_m1000.txt">
-            <parameter scale="1.0" name="Normalization" min="0.0" max="1.e+8" value="1.0" free="1"/>
+            <parameter scale="1.0" name="Normalization" min="0.0" max="1.e+10" value="1.0" free="1"/>
         </spectrum>
         <spatialModel type="PointSource" >
             <parameter name="RA" ,="1.0" value="49.946" min="-360" max="360" free="0" />
