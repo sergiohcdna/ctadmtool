@@ -21,12 +21,12 @@ The contents of the project are:
      - ctools and gammalib functions to manage observation container, simulation, and some plotting 
    * ***mycsspec.py***
      - Custom version of csspec tool. This code includes the calculation of TS difference with respect the best parameters computed in likelihood
-4. **ClusterDMlimit.py**
-   * Out-of-date script for simulation of observation, likelihood fit and calculation of upper limits for dark matter models in galaxy clusters
+4. **DMlimits.py**
+   * Script for simulation of observation, likelihood fit and calculation of upper limits for dark matter models (Up-to-date)
 5. **ONOFFAnalysisGralMean.py**
    * Implementation for simulation of observation, likelihood fit and calculation of upper limits, residuals calculation, spectrum calculation and plotting, for a specified xml-model.
 
-- [ ] Future work: More comments in code :)
+- [X] Future work: More comments in code :)
 - [X] Future work: Add c++ classes for DM analysis
 
 Feel free to make changes in this file :+1:
@@ -39,6 +39,83 @@ You can set the ```GAMMALIB``` and ```CTOOLS``` environment variables as usual. 
 	export MYXMLS=/path/to/ctaAnalysis/XMLTemplates
 ```
 This variable is used in some of the XML Model-templates to indicate where a spectrum-file is, for example. You can also use when running DMLimits script to indicate where the input model is
+
+## DM Limits Calculation
+
+Implementation of the calculation of exclusion limits on annihilation or decay of DM particles can be found in **DMLimits** script. This is prototype of the analysis chain to be translated into a cscripts class. At this moment, **DMLimits** perform the simulation of an observation based in the input DM-model. If the ```--is_onoff``` argument is present in the command line, then **DMLimits** creates a GCTAOnOff Observation using ```csphagen```. Then, ctlike is used to compute the best-fit parameters. If the ```tscalc``` flag is activated in the XML Model definition, TS is calculated automatically by ctlike. **DMLimits** checks if this flag is activated, if not then compute the TS by copying the observation (obsII) in the ctlike container, remove the source model from obsII, and create a temporary ctlike object to compute the likelihood for the null hypothesis. If TS < 25, then **DMLimits** compute UL to the flux using ```ctulimit```. This process is repeated for some number of realizations indicated with the argument ```--nsims```. All the relevant results are saved to a fits file. The results are:
+
+1. Observation RUNID
+2. Number of events in the observation container
+3. TS computed
+4. Scale factor (ratio of UL differential flux to theoretical flux, both at same reference energy)
+5. Logarithm of parameter of interest (cross-section or lifetime)
+6. Value and error of free parameters
+
+You can request the help message from **DMLimits** by typping ```python DMLimits.py --help```. The complete message is:
+
+```python3
+usage: DMLimits.py [-h] --inmodel PerseusModel.xml --gname Perseus
+                   [--coordsys CEL] --ROIra 47.0 --ROIdec 39.0 --ROIradius
+                   10.0 --pntra 47.0 --pntdec 39.0 --pntradius 10.0
+                   [--caldb prod3b-v2] [--irf North_z20_50h] [--hours 50.0]
+                   [--enumbins 20] [--emin 0.01] [--emax 100.0] [--id 0]
+                   [--pts 25.0] --nsims 10 [--nthreads 10]
+                   [--outpath path/to/file/] [--is_onoff]
+                   {anna,decs} ...
+
+This script compute the DM limits using Cirelli et al. Spectrum
+
+positional arguments:
+  {anna,decs}           Selecting DM processess to produce gamma-rays
+    anna                DM annihilation Process
+    decs                DM decay Process
+
+optional arguments:
+  -h, --help            show this help message and exit
+
+Source:
+  All the relevant information about the source is passed in the inmodel
+  argument, where a XML file is passed describing parameters for the
+  observation, as position of the source, name, and spatial and spectral
+  models for the source. It is assumed that the file provides information
+  about the background model used in the observation. For more details, the
+  user is referred to the gammalib and ctools documentations :)
+
+  --inmodel PerseusModel.xml
+                        File with xml model
+  --gname Perseus       Name of the simulation
+  --coordsys CEL        Coordinate system used to perform the simulation.
+                        Options are: [ GAL , CEL ] ( Galactic , Celestial )
+  --ROIra 47.0          First coordinate for center of Region of Interest
+                        (according to Coord. Sys.)
+  --ROIdec 39.0         Second coordinate for center of Region of Interestn
+                        (according to Coord. Sys.)
+  --ROIradius 10.0      Radius of the Region of Interest (degrees)
+
+CTA-Intrument options:
+  Information about CTA IRF, observation time, etc.
+
+  --pntra 47.0          First coordinate of the pointing direction (according
+                        to Coord. Sys.)
+  --pntdec 39.0         Second coordinate of the pointing direction (according
+                        to Coord. Sys.)
+  --pntradius 10.0      Radius of the observation (degrees)
+  --caldb prod3b-v2     Database production for the IRF file. Options are: [
+                        prod2 , prod3b-v1 , prod3b-v2 ]
+  --irf North_z20_50h   Instrument Response Function for CTA
+  --hours 50.0          Time for simulation of observation (in hours)
+  --enumbins 20         Number of energy bins
+  --emin 0.01           Minimum energy for events (TeV)
+  --emax 100.0          Maximum energy for events (TeV)
+  --id 0                A number identifier for events in simulation.
+  --pts 25.0            Value for TS to check if plot point-flux (ts > pts) or
+                        upper-limit (ts < pts). Default value: 25.0
+  --nsims 10            Number of simulations
+  --nthreads 10         Number of threads to speed the calculations
+  --outpath path/to/file/
+                        Path to save files
+  --is_onoff            Boolean to indicate ON/OFF observation type
+```
 
 ## ON/OFF Analysis
 
