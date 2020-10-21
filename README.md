@@ -33,7 +33,12 @@ Feel free to make changes in this file :+1:
 
 ## ctools and gammalib setup
 
-I (Sergio) have two functional versions of ctools and gammalib running in a cluster (@UNAM). I compiled the code from source using: python 3.6.8 (installed with pyenv), gnu 7.2, cmake 3.9, openssl 1.1.1 openmpi  4.0.3 and automake 1.15 (needed if you want to compile the code clonning the project from github, though). The installation is under centos 6. I also have a local (conda) installation in MAC Os-x Mojave. In particular, all the scripts here use python3 syntax :sunglasses:.
+You can set the ```GAMMALIB``` and ```CTOOLS``` environment variables as usual. See the documentation about gammalib and ctools. Additionally, you must set the next environment variable
+
+```
+	export MYXMLS=/path/to/ctaAnalysis/XMLTemplates
+```
+This variable is used in some of the XML Model-templates to indicate where a spectrum-file is, for example. You can also use when running DMLimits script to indicate where the input model is
 
 ## ON/OFF Analysis
 
