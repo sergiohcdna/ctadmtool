@@ -117,6 +117,27 @@ CTA-Intrument options:
   --is_onoff            Boolean to indicate ON/OFF observation type
 ```
 
+As you can see, it is possible to select between annihilation or decay of DM. The help on this can be displayed using ```python DMLimits.py anna(decs) --help```. The help message is:
+
+```python3
+$ python DMLimits.py anna --help
+usage: DMLimits.py anna [-h] [--sigmav 1.e-28] [--jfactor 1.e+20]
+                        [--channel 11] [--mass 100.0]
+
+optional arguments:
+  -h, --help        show this help message and exit
+  --sigmav 1.e-28   Annihilation cross-section (cm**3/s)
+  --jfactor 1.e+20  Astrophysical J factor (in GeV**2/cm**5)
+  --channel 11      Annihilation channel (According to PPPC4DM Tables)
+  --mass 100.0      DM mass (in TeV)
+```
+
+An example to run the script is:
+
+```python3
+$python DMLimits.py --gname Perseus --ROIra 49.946 --ROIdec 41.513 --ROIradius 1.0 --irf North_z20_50h --coordsys CEL --pntra 48.6 --pntdec 40.0 --pntrad 3 --hours 1.0 --emin 0.1 --emax 10.0 --id DMSim --nsims 10 --inmodel $MYXMLS/Perseus_DMPointSource_anna_1000GeV_tau.xml --outpath Perseus_PSDM_annaII --caldb prod3b-v2 --is_onoff anna --mass 10.0 --jfactor 1.2e+19 --channel 11 --sigmav 1.e-28
+```
+
 ## ON/OFF Analysis
 
 For the (*Wobble*) ON/OFF observation, I implemented two scripts: the first one in python, and the second in C++. An observation in (*Wobble*) ON/OFF mode is where the CTA telescopes are pointing to an alternative sky position lying x degrees from the center of the region of interes (ROI). The python script was written using the csphagen python module, default when ctools is built. In the other hand, the C++ script is currently under construction, because there is not a tool to create ON/OFF observations. The creation of the ON/OFF observation is based in the csphagen python tool, but with several simplifications. The goal of the C++ script is to test new gammalib classes to describe DM scpectral models according to the purposes of this project, and/or calculation of full-likeihood (including nuisance parameters).
