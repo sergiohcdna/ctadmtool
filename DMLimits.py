@@ -647,8 +647,8 @@ if __name__ == '__main__':
     dmfits.append( table )
 
     #   And save file
-    fits_file = '{:s}_{:s}_{:d}_{:d}reps_Results.fits'.format( args.gname ,\
-        args.dmprocess , args.channel , args.nsims )
+    fits_file = '{:s}_{:s}_{:s}_{:d}_{:d}reps_Results.fits'.format( args.id , \
+        args.gname ,args.dmprocess , args.channel , args.nsims )
     fits_file = auxMan.createname( args.outpath , fits_file )
 
     dmfits.saveto( fits_file , True )
