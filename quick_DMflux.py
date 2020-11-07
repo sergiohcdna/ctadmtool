@@ -127,6 +127,6 @@ if __name__ == '__main__' :
     header  = ' \tE[MeV]\tFlux[1/MeV/cm**2/s]'
 
     np.savetxt( outfile , data , header=header , \
-        fmt='%.5e' , delimiter='\t' )
+        fmt='%.6e' , delimiter='\t' )
 
 
