@@ -572,8 +572,18 @@ if __name__ == '__main__':
         col_runID[ nsim ]  = nsim + 1
         col_events[ nsim ] = events
         col_ts[ nsim ]     = TS
-        col_scale[ nsim ]  = np.log10( scale )
-        col_cs[ nsim ]     = np.log10( parameter_UL )
+
+        #   If TS < 25, then save log(scale) and log(UL)
+        #   else, save 0 for scale and UL
+        if TS < 25 :
+
+            col_scale[ nsim ]  = np.log10( scale )
+            col_cs[ nsim ]     = np.log10( parameter_UL )
+
+        else :
+
+            col_scale[ nsim ]  = 0.0
+            col_cs[ nsim ]     = 0.0
 
         for ipar in range( len( pars ) ) :
 
