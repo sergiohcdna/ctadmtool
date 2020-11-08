@@ -126,7 +126,6 @@ if __name__ == '__main__' :
     outfile = auxMan.createname( args.outpath , args.dfile )
     header  = ' \tE[MeV]\tFlux[1/MeV/cm**2/s]'
 
-    np.savetxt( outfile , data , header=header , \
-        fmt='%.6e' , delimiter='\t' )
+    np.savetxt( outfile , data , header=header , fmt='%.6e' , delimiter=' ' )
 
 
