@@ -358,8 +358,6 @@ if __name__ == '__main__':
         print( '\t*    Observation: {:d}'.format( nsim + 1 ) )
         print( '\t**********************' )
 
-        auxMan.Wait( 3 )
-
         #   GObservations Container
         obslist    = gammalib.GObservations()
 
@@ -532,7 +530,6 @@ if __name__ == '__main__':
         if TS < 25 :
 
             print( '\t**    UL(95%C.L.) calculation' )
-            auxMan.Wait( 3 )
 
             limit = ctools.ctulimit()
 
@@ -592,7 +589,7 @@ if __name__ == '__main__':
 
         if nsim == 0 :
 
-            auxMan.Wait( 1 )
+            print( 'Saving some files' )
 
         else :
 
