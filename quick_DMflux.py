@@ -1,4 +1,7 @@
+import matplotlib.pyplot as plt
 import numpy as np
+from ebltable.tau_from_model import OptDepth
+
 from auxfunctions import dminterpol , auxMan
 
 import argparse
@@ -70,6 +73,17 @@ if __name__ == '__main__' :
         type=str ,\
         default='Tau' ,\
         metavar='Tau' )
+    dmmodel.add_argument( '--z' ,\
+        help='redshift z of the target' ,\
+        type=float ,\
+        default=0.0 ,\
+        metavar='2.0' )
+    dmmodel.add_argument( '--eblmodel' ,\
+        help='EBL Model. Please check EBLTable doc to check\
+            what models are available' ,\
+        type=str ,\
+        default='franceschini' ,\
+        metavar='franceschini' )
     dmmodel.add_argument( '--npoints' ,\
         help='Number of points to compute the spectra' ,\
         type=int ,\
@@ -85,16 +99,25 @@ if __name__ == '__main__' :
         type=str ,\
         default='./' ,\
         metavar='/path/to/directory/' )
+    dmmodel.add_argument( '--plot' ,\
+        help='Plot dmSpectrum' ,\
+        action='store_true' )
 
     args = options.parse_args()
 
     #   Load the DM interpolator
     ewdm_int = dminterpol.pppcDM_EWinterp( args.gammafile , args.channel )
 
+    #   Create Optical-Depth instance
+    tau = OptDepth.readmodel( model='franceschini' )
+
     #   Define the array with x values
     #   Remember: x = energy / DMmass
     x_start = args.estart / args.mass
     xvalues = np.logspace(  np.log10( x_start ) , 0 , args.npoints )
+
+    #   Computing EBL attenuation for E_start up to DM mass
+    atten   = np.exp( -1. * tau.opt_depth( args.z , xvalues * args.mass * 1.e-3 ) )
 
     thisppfactor = 0
 
@@ -115,11 +138,12 @@ if __name__ == '__main__' :
     #   Computing the gamma-ray flux from dm
     flux  = ewdm_int( ( args.mass , xvalues ) )
     flux *= thisppfactor * args.jfactor
+    flux_atten = flux * atten
 
     #   Converting to MeV
     #   By default, gammalib use MeV as energy unit
     eng_MeV  = xvalues * args.mass * 1.e+3
-    flux_MeV = flux * 1.e-3
+    flux_MeV = flux_atten * 1.e-3
 
     #   Save to file
     data    = np.array( ( eng_MeV , flux_MeV ) ).transpose()
@@ -128,4 +152,21 @@ if __name__ == '__main__' :
 
     np.savetxt( outfile , data , header=header , fmt='%.6e' , delimiter=' ' )
 
+    if args.plot :
+
+        fig , ax = plt.subplots( figsize=( 9 , 6 ) )
+
+        ax.plot( xvalues * args.mass , flux , color=( 0.82 , 0.1 , 0.26 ) , \
+            label='DM flux without EBL' , lw=2 )
+        ax.plot( xvalues * args.mass , flux_atten , color=( 0.57 , 0.36 , 0.51 ) , \
+            label='DM flux with EBL' , lw=2 )
+
+        ax.set_xlim( args.estart , 10 * args.mass )
+        ax.set_xlabel( 'E(GeV)' )
+        ax.set_ylabel( '$\\frac{d\\Phi_{\\gamma}}{dE} (ph cm^{-2} s^{-1} GeV^{-1})$' )
+        ax.set_xscale( 'log' )
+        ax.set_yscale( 'log' )
+        ax.legend( loc='best' , prop={ 'size': 10 } )
+        pfile = 'DMflux.png'
+        plt.savefig( pfile )
 
