@@ -40,27 +40,18 @@ if __name__ == '__main__':
         type=str ,\
         required=True ,
         metavar='Perseus' )
-    source.add_argument( '--coordsys' ,\
-        help='Coordinate system used to perform the simulation. \
-            Options are: [ GAL , CEL ] ( Galactic , Celestial )' ,\
-        type=str ,\
-        default='CEL' ,\
-        metavar='CEL' ,\
-        choices=[ 'GAL' , 'CEL' ] )
     source.add_argument( '--ROIra' ,\
-        help='First coordinate for center of Region of Interest \
-            (according to Coord. Sys.)' ,\
+        help='Right Ascension of ROI (in degrees)'  ,\
         type=float ,\
         required=True ,\
         metavar='47.0' )
     source.add_argument( '--ROIdec' ,\
-        help='Second coordinate for center of Region of Interestn \
-            (according to Coord. Sys.)' ,\
+        help='Declination of ROI (in degrees)' ,\
         type=float ,\
         required=True ,\
         metavar='39.0' )
     source.add_argument( '--ROIradius' ,\
-        help='Radius of the Region of Interest (degrees)' ,\
+        help='Radius of ROI (in degrees)' ,\
         type=float ,\
         required=True ,\
         metavar='10.0' )
@@ -68,19 +59,17 @@ if __name__ == '__main__':
     instrument = options.add_argument_group( 'CTA-Intrument options' , \
         'Information about CTA IRF, observation time, etc.' )
     instrument.add_argument( '--pntra' ,\
-        help='First coordinate of the pointing direction \
-            (according to Coord. Sys.)' ,\
+        help='Right Ascension of pointing (in degrees)' ,\
         type=float ,\
         required=True ,\
         metavar='47.0' )
     instrument.add_argument( '--pntdec' ,\
-        help='Second coordinate of the pointing direction \
-            (according to Coord. Sys.)' ,\
+        help='Declination of pointing (in degrees)' ,\
         type=float ,\
         required=True ,\
         metavar='39.0' )
     instrument.add_argument( '--pntradius' ,\
-        help='Radius of the observation (degrees)' ,\
+        help='Radius of the observation (in degrees)' ,\
         type=float ,\
         required=True ,\
         metavar='10.0' )
@@ -109,7 +98,7 @@ if __name__ == '__main__':
     instrument.add_argument( '--emin',\
         help='Minimum energy for events (TeV)' ,\
         type=float ,\
-        default=0.05 ,\
+        default=0.03 ,\
         metavar='0.01' )
     instrument.add_argument( '--emax',\
         help='Maximum energy for events (TeV)' ,\
@@ -122,8 +111,7 @@ if __name__ == '__main__':
         default='0' ,\
         metavar='0' )
     instrument.add_argument( '--pts' ,\
-        help='Value for TS to check if plot point-flux (ts > pts) or upper-limit (ts < pts). \
-            Default value: 25.0' ,\
+        help='Value of TS to compute Exclusion limits (TS < pts).' ,\
         type=float ,\
         default='25.0' ,\
         metavar='25.0' )
@@ -135,17 +123,15 @@ if __name__ == '__main__':
     instrument.add_argument( '--nthreads' ,\
         help='Number of threads to speed the calculations' ,\
         type=int ,\
-        required=False ,\
         metavar='10' ,\
         default=1 )
     instrument.add_argument( '--outpath' , \
         help='Path to save files' ,\
         type=str ,\
-        required=False ,\
         default='./' ,\
         metavar='path/to/file/' )
     instrument.add_argument( '--is_onoff' ,\
-        help='Boolean to indicate ON/OFF observation type' ,\
+        help='Indicate ON/OFF observation type' ,\
         action='store_true' )
 
     #   Create two parsers to manage the DM process selection
@@ -251,7 +237,9 @@ if __name__ == '__main__':
 
         print( '\n\tERROR: {:s} not found in Model container.\
             \n\tAvailbale models are:' )
-        [ print( '\t -  {:s}'.format( name ) ) for name in nameSources ]
+        for name in nameSources :
+
+            print( '\t - {:s}'.format( name ) )
 
         sys.exit()
 
@@ -265,19 +253,8 @@ if __name__ == '__main__':
     #   Set the GSkydir according to the coordinate system especified
     #   in the input parameters
     pdir = gammalib.GSkyDir()
+    pdir.radec_deg( args.pntra , args.pntdec )
 
-    if args.coordsys.upper() == 'CEL' :
-
-        pdir.radec_deg( args.pntra , args.pntdec )
-
-    elif args.coordsys.upper() == 'GAL' :
-
-        pdir.lb_deg( args.pntra , args.pntdec )
-
-    else :
-
-        print( 'Unknown coordinate system. Assuming Galactic coordinates' )
-        pdir.lb_deg( args.pntra , args.pntdec )
 
     #   Set duration of observation
     duration = args.hours * 3600.
@@ -423,25 +400,9 @@ if __name__ == '__main__':
             onoffgen[ 'emin' ]       = args.emin
             onoffgen[ 'emax' ]       = args.emax
             onoffgen[ 'enumbins' ]   = args.enumbins
-            onoffgen[ 'coordsys' ]   = args.coordsys
-
-            if args.coordsys.upper() == 'CEL' :
-
-                onoffgen[ 'ra' ]     = args.ROIra
-                onoffgen[ 'dec' ]    = args.ROIdec
-
-            elif args.coordsys.upper() == 'GAL' :
-
-                onoffgen[ 'glon' ]   = args.ROIra
-                onoffgen[ 'glat' ]   = args.ROIdec
-
-            else :
-
-                print( 'Unknown coordinte system. Assuming Galactic system' )
-
-                onoffgen[ 'glon' ]   = args.ROIra
-                onoffgen[ 'glat' ]   = args.ROIdec
-
+            onoffgen[ 'coordsys' ]   = 'CEL'
+            onoffgen[ 'ra' ]         = args.ROIra
+            onoffgen[ 'dec' ]        = args.ROIdec
             onoffgen[ 'rad' ]        = args.ROIradius
             onoffgen[ 'bkgmethod' ]  = 'REFLECTED'
             onoffgen[ 'bkgregskip' ] = 1
@@ -527,7 +488,7 @@ if __name__ == '__main__':
         scale        = 0.0
         parameter_UL = 0.0
 
-        if TS < 25 :
+        if TS < args.pts :
 
             print( '\t**    UL(95%C.L.) calculation' )
 
@@ -572,7 +533,7 @@ if __name__ == '__main__':
 
         #   If TS < 25, then save log(scale) and log(UL)
         #   else, save 0 for scale and UL
-        if TS < 25 :
+        if TS < args.pts :
 
             col_scale[ nsim ]  = np.log10( scale )
             col_cs[ nsim ]     = np.log10( parameter_UL )
