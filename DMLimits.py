@@ -22,7 +22,8 @@ from auxfunctions import *
 if __name__ == '__main__':
 
     options = argparse.ArgumentParser( description='This script compute \
-        the DM limits using Cirelli et al. Spectrum' )
+        the DM limits using Cirelli et al. Spectrum' ,\
+        fromfile_prefix_chars='@' )
     source = options.add_argument_group( 'Source' , \
         'All the relevant information about the source is passed in the inmodel\
         argument, where a XML file is passed describing parameters for the\
@@ -182,6 +183,7 @@ if __name__ == '__main__':
 
     #   Parsing arguments
     args = options.parse_args()
+    print( args )
 
     MeVtoTeV = 1.e-6 ;
 
