@@ -76,7 +76,7 @@ def pppcDM_EWinterp( fname , channel ) :
             #   Getting the flux and filling the grid
             dmgrid[ mindex ][ counter ] = omega / mass / np.log( 10 ) / xval
 
-    interpolator = RBS( masses , xvalues , dmgrid , kx=5 , ky=5 )
+    interpolator = RBS( masses , xvalues , dmgrid , kx=1 , ky=1 )
 
     return interpolator
 
