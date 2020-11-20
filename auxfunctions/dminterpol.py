@@ -13,7 +13,7 @@
 ########################################################
 
 import numpy as np
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RectBivariateSpline as RBS
 
 import sys
 
@@ -63,29 +63,20 @@ def pppcDM_EWinterp( fname , channel ) :
     dmgrid  = np.zeros( ( masses.size , xvalues.size ) )
 
     #   Filling the grid
-    for m_index in range( masses.size ) :
+    for mindex , mass in enumerate( masses ) :
 
-        mass    = masses[ m_index ]
-
-        #   Get the indices where data[ 'mDM']
-        #   is equal to mass
+        #   Get the indices where data[ 'mDM'] is equal to mass
         indices = np.where( data[ 'mDM'] == mass )
+        phi = data[ channel ][ indices ]
 
         #   Loop to extract dm_flux
-        for index in indices :
-            for x_index in range( xvalues.size ) :
+        for counter , omega in enumerate( phi ) :
 
-                xvalue = xvalues[ x_index ]
+            xval = xvalues[ counter ]
+            #   Getting the flux and filling the grid
+            dmgrid[ mindex ][ counter ] = omega / mass / np.log( 10 ) / xval
 
-                #   Getting the flux
-                flux = data[ channel ][ index ][ x_index ]
-                flux = flux / xvalue / mass / np.log( 10 )
-
-                #   filling the grid
-                dmgrid[ m_index ][ x_index ] = flux
-
-    interpolator = RegularGridInterpolator( [ masses , xvalues ] ,\
-        dmgrid , bounds_error=False , fill_value=0 )
+    interpolator = RBS( masses , xvalues , dmgrid , kx=5 , ky=5 )
 
     return interpolator
 
