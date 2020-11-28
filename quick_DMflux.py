@@ -108,16 +108,10 @@ if __name__ == '__main__' :
     #   Load the DM interpolator
     ewdm_int = dminterpol.pppcDM_EWinterp( args.gammafile , args.channel )
 
-    #   Create Optical-Depth instance
-    tau = OptDepth.readmodel( model='franceschini' )
-
     #   Define the array with x values
     #   Remember: x = energy / DMmass
     x_start = args.estart / args.mass
     xvalues = np.logspace(  np.log10( x_start ) , 0 , args.npoints )
-
-    #   Computing EBL attenuation for E_start up to DM mass
-    atten   = np.exp( -1. * tau.opt_depth( args.z , xvalues * args.mass * 1.e-3 ) )
 
     thisppfactor = 0
 
@@ -135,10 +129,23 @@ if __name__ == '__main__' :
         print( 'Unknown process. I assume you mean annihilation' )
         thisppfactor = dminterpol.ppfactor_ann( args.sigmav , args.mass )
 
+    if args.z > 1.e-3 :
+
+        #   Create Optical-Depth instance
+        tau = OptDepth.readmodel( model='franceschini' )
+
+        #   Computing EBL attenuation for E_start up to DM mass
+        atten   = np.exp( -1. * tau.opt_depth( args.z , xvalues * args.mass * 1.e-3 ) )
+
+    else :
+
+        #   Redshift is below minimum value available
+        #   Then, attenuation is equal to indentity
+        atten = 1.0
+
     #   Computing the gamma-ray flux from dm
-    flux  = ewdm_int( ( args.mass , xvalues ) )
-    flux *= thisppfactor * args.jfactor
-    flux_atten = flux * atten
+    flux  = ewdm_int( args.mass , xvalues )
+    flux_atten = flux[ 0 ] * atten * thisppfactor * args.jfactor
 
     #   Converting to MeV
     #   By default, gammalib use MeV as energy unit
@@ -150,7 +157,7 @@ if __name__ == '__main__' :
     outfile = auxMan.createname( args.outpath , args.dfile )
     header  = ' \tE[MeV]\tFlux[1/MeV/cm**2/s]'
 
-    np.savetxt( outfile , data , header=header , fmt='%.6e' , delimiter=' ' )
+    np.savetxt( outfile , data , fmt='%.6e' , delimiter=' ' )
 
     if args.plot :
 
