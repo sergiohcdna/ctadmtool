@@ -416,6 +416,8 @@ if __name__ == '__main__':
         #   we use csphagen to handle this
         if args.is_onoff :
 
+            print( "\t\tStarting calculation of On-Off files using csphagen app" )
+
             onoffname      = auxMan.createname( args.outpath , \
                 '{:s}OnOffObs.xml'.format( thisrunID ) )
             onoffmodelname = auxMan.createname( args.outpath ,\
@@ -454,8 +456,12 @@ if __name__ == '__main__':
             #   Number of observed events.
             nobserved = onoffgen.obs()[ 0 ].nobserved()
 
+            print( ( "\n\t\tOnOff Model saved in:    {:s}".format( onoffmodelname ) +
+                     "\n\t\tOnOff XML file saved in: {:s}".format( onoffname ) +
+                     "\n\t\tMethod to create background regions: REFLECTED" ) )
+
         #   Now, Optimization using MLE
-        print( '\t**    DM fitting...' )
+        print( '\t**    DM fitting' )
 
         likeModelName = auxMan.createname( args.outpath ,\
             '{:s}LikeOutModel.xml'.format( thisrunID ) )
@@ -480,6 +486,8 @@ if __name__ == '__main__':
         like[ 'nthreads' ]      = args.nthreads
         like[ 'debug' ]         = False
 
+        print( '\t\t* Likelihood Calculation' )
+
         like.execute()
 
         #   Likelihood including DM Model
@@ -498,9 +506,14 @@ if __name__ == '__main__':
 
         #Perform calculation of TS
 
+        print( '\t\t* Getting value of TS' )
+
         TS = 0.0
 
         if not ts_flag :
+
+            print( ( '\n\t\t* TS flag is not activated in XML model'
+                     '\n\t\t* Calculation of TS using a copy of ctlike instance' ) )
 
             #   Now, removing the source model to
             #   compute the likelihood for Null hypothesis
@@ -517,6 +530,7 @@ if __name__ == '__main__':
 
             TS = like.obs().models()[ args.gname ].ts()
 
+        print( '\n\t\t** TS = {:.3e}'.format( TS ) )
 
         #   Now, performin calculation of UL if TS < 25
 
@@ -558,13 +572,14 @@ if __name__ == '__main__':
 
                 parameter_UL = args.sigmav * scale
 
-                print( 'Annihilation cross-section: {:.5e} cm**3/s'.format( parameter_UL ) )
+                print( ( '\n\t\t*** Annihilation cross-section:' +
+                         ' {:.5e} cm**3/s'.format( parameter_UL ) ) )
 
             else :
 
                 parameter_UL = args.lifetime / scale
 
-                print( 'Decay Lifetime: {:.5e} s'.format( parameter_UL ) )
+                print( '\n\t\t*** Decay Lifetime: {:.5e} s'.format( parameter_UL ) )
 
         #   Saving to fits file
         col_runID[ nsim ]  = nsim + 1
@@ -658,6 +673,8 @@ if __name__ == '__main__':
     fits_file = '{:s}_{:s}_{:s}_{:d}_Results.fits'.format( args.id , \
         args.gname ,args.dmprocess , args.channel )
     fits_file = auxMan.createname( args.outpath , fits_file )
+
+    print( '** Results saved in: {:s}\n'.format( fits_file ) )
 
     dmfits.saveto( fits_file , True )
 
