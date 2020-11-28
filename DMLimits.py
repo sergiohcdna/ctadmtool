@@ -183,7 +183,6 @@ if __name__ == '__main__':
 
     #   Parsing arguments
     args = options.parse_args()
-    print( args )
 
     MeVtoTeV = 1.e-6 ;
 
@@ -252,10 +251,45 @@ if __name__ == '__main__':
     freepars = [ par.name() for par in models[ args.gname ].spectral() \
         if par.is_free() ]
 
-    #   Set the GSkydir according to the coordinate system especified
-    #   in the input parameters
+    #   Set the GSkydir for pointing direction and source position
     pdir = gammalib.GSkyDir()
+    rdir = gammalib.GSkyDir()
     pdir.radec_deg( args.pntra , args.pntdec )
+    rdir.radec_deg( args.ROIra , args.ROIdec )
+
+    #   Compute angular distance between directions
+    dirs_sep = pdir.dist_deg( rdir )
+
+    #   Creating two GSkyRegionCircle regions to check that
+    #   Region of simulation contains ROI region
+    pntregion = gammalib.GSkyRegionCircle( pdir , args.pntradius )
+    roiregion = gammalib.GSkyRegionCircle( rdir , args.ROIradius )
+
+    #   Check if pointing region contains ROI region
+    is_inside = pntregion.contains( roiregion )
+
+    if is_inside :
+
+        print( ( "\n\nPonting region with:\n" +
+               "\tRA     : {:.3f} deg\n".format( args.pntra ) +
+               "\tDec    : {:.3f} deg\n".format( args.pntdec ) +
+               "\tRadius : {:.2f} deg\n\n".format( args.pntradius ) +
+               "contains ROI region.\n\nROI region:\n" +
+               "\tRA     : {:.3f} deg\n".format( args.ROIra ) +
+               "\tDec    : {:.3f} deg\n".format( args.ROIdec ) +
+               "\tRadius : {:.2f} deg".format( args.ROIradius ) +
+               "\n\nAngular separation between pointing and" +
+               " position of the source is: {:.2f} deg\n".format( dirs_sep ) ) )
+
+    else :
+
+        print( ( "\n\nError:\n" +
+               "Ponting region does not contain region associated with the source.\n" +
+               "Please check the two directions.\n" +
+               "\n\nAngular separation between pointing and"
+               " position of the source is: {:.2f} deg\n".format( dirs_sep ) ) )
+
+        sys.exit()
 
 
     #   Set duration of observation
@@ -524,9 +558,13 @@ if __name__ == '__main__':
 
                 parameter_UL = args.sigmav * scale
 
+                print( 'Annihilation cross-section: {:.5e} cm**3/s'.format( parameter_UL ) )
+
             else :
 
                 parameter_UL = args.lifetime / scale
+
+                print( 'Decay Lifetime: {:.5e} s'.format( parameter_UL ) )
 
         #   Saving to fits file
         col_runID[ nsim ]  = nsim + 1
