@@ -334,6 +334,7 @@ if __name__ == '__main__':
     col_events  = gammalib.GFitsTableDoubleCol( 'CubeEvents' , args.nsims )
     # col_oevents = gammalib.GFitsTableDoubleCol( 'ObsEvents' , args.nsims )
     col_ts      = gammalib.GFitsTableDoubleCol( 'TS' , args.nsims )
+    col_ulflux  = gammalib.GFitsTableDoubleCol( 'ULFlux', args.nsims )
     col_scale   = gammalib.GFitsTableDoubleCol( 'ScaleFactor' , args.nsims )
 
     if is_anna_or_decs :
@@ -532,11 +533,12 @@ if __name__ == '__main__':
 
         print( '\n\t\t** TS = {:.3e}'.format( TS ) )
 
-        #   Now, performin calculation of UL if TS < 25
+        #   Now, performing calculation of UL if TS < 25
 
         #  Initializing Scale factor and UL
         scale        = 0.0
         parameter_UL = 0.0
+        diff_flux    = 0.0
 
         if TS < args.pts :
 
@@ -568,6 +570,9 @@ if __name__ == '__main__':
             diff_flux = limit.diff_ulimit()
             scale     = diff_flux / theo_flux
 
+            print( ( '\n\t\t*** Upper limit of the differential flux:' +
+                     ' {:.5e} cm**3/s'.format( diff_flux ) ) )
+
             if is_anna_or_decs :
 
                 parameter_UL = args.sigmav * scale
@@ -585,6 +590,7 @@ if __name__ == '__main__':
         col_runID[ nsim ]  = nsim + 1
         col_events[ nsim ] = events
         col_ts[ nsim ]     = TS
+        col_ulflux[ nsim ] = diff_flux
 
         #   If TS < 25, then save log(scale) and log(UL)
         #   else, save 0 for scale and UL
