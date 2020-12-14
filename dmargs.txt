@@ -1,10 +1,10 @@
---gname=ComaBerenices
---ROIra=186.746
---ROIdec=23.904
+--gname=Perseus
+--ROIra=49.946
+--ROIdec=41.513
 --ROIradius=1.0
 --irf=North_z20_50h
---pntra=185.7
---pntdec=22.3
+--pntra=48.5
+--pntdec=40.2
 --pntradius=3
 --hours=10
 --emin=0.03
