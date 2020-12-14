@@ -685,5 +685,3 @@ if __name__ == '__main__':
     dmfits.saveto( fits_file , True )
 
     print( 'This is the END!...' )
-
-
