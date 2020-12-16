@@ -25,6 +25,8 @@ The contents of the project are:
    * Script for simulation of observation, likelihood fit and calculation of upper limits for dark matter models (Up-to-date)
 5. **ONOFFAnalysisGralMean.py**
    * Implementation for simulation of observation, likelihood fit and calculation of upper limits, residuals calculation, spectrum calculation and plotting, for a specified xml-model.
+6. **dmexample.py**
+   * Example using csdmatter application. See below
 
 - [X] Future work: More comments in code :)
 - [X] Future work: Add c++ classes for DM analysis
@@ -33,12 +35,25 @@ Feel free to make changes in this file :+1:
 
 ## ctools and gammalib setup
 
-You can set the ```GAMMALIB``` and ```CTOOLS``` environment variables as usual. See the documentation about gammalib and ctools. Additionally, you must set the next environment variable
+You can set the ```GAMMALIB``` and ```CTOOLS``` environment variables as usual. See the documentation about gammalib and ctools. Optionally, you must set the next environment variable
 
 ```
 	export MYXMLS=/path/to/ctaAnalysis/XMLTemplates
 ```
 This variable is used in some of the XML Model-templates to indicate where a spectrum-file is, for example. You can also use when running DMLimits script to indicate where the input model is
+
+## Example running the csdmatter prototype
+csdmatter script is based on cscripts apps. The csdmatter app is a prototype for the dmtool in ctools, so there are several improvements that would be added. When you clone the project, please be sure that you copy or move the files csdmatter.par and csdmatter.txt to $CTOOLS/syspfiles/ and $CTOOLS/share/help/ folders, respectively.
+
+dmexample.py is an example based on other HOW to's from the official documentation. To run dmexample, you only need to type in your term window:
+
+```
+$python dmexample.py
+```
+
+Please check the file XMLTemplates/Perseus_DMPS_anna_1000GeV_b.xml to change the path to the spectrum file. You can change this file, if you want to try with a different spectrum file
+
+If you find any problem or you have any suggestion, please open an issue :)
 
 ## DM Limits Calculation
 
