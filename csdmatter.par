@@ -1,0 +1,61 @@
+#############################################################################
+#                                                                           #
+#                       CTA Science Analysis Tools                          #
+#                                                                           #
+# ------------------------------------------------------------------------- #
+#                                                                           #
+#  File:      csdmatter.par                                                 #
+#                                                                           #
+#  Author:    Sergio, Judit, Miguel                                         #
+#             The DMTaskForce                                               #
+#             skerzot@ciencias.unam.mx                                      #
+#             IFUNAM                                                        #
+#                                                                           #
+#  Purpose:   Parameter file for the csdmatter script                       #
+#                                                                           #
+#############################################################################
+#
+# Input and output parameters
+#============================
+inobs,     f, a, events.fits,,, "Input event list, counts cube, or observation definition XML file"
+inmodel,   f, a, $CTOOLS/share/models/crab.xml,,, "Input model definition XML file"
+srcname,   s, a, Crab,,, "Source name"
+expcube,   f, a, NONE,,, "Input exposure cube file"
+psfcube,   f, a, NONE,,, "Input PSF cube file"
+edispcube, f, a, NONE,,, "Input energy dispersion cube file"
+bkgcube,   f, a, NONE,,, "Input background cube file"
+caldb,     s, a, prod2,,, "Calibration database"
+irf,       s, a, South_0.5h,,, "Instrument response function"
+edisp,     b, h, no,,, "Apply energy dispersion?"
+outfile,   f, a, dmfitting.fits,,, "Output spectrum file"
+
+#
+# Script parameters
+#==================
+#method,        s, a, AUTO,SLICE|NODES|AUTO,, "Spectrum generation method"
+dmass,         r, a, 10,0.1,100, "Mass of DM particle"
+ebinalg,       s, a, LOG,FILE|LIN|LOG|POW,, "Algorithm for defining energy bins"
+emin,          r, a, 0.1,,, "Start value for first energy bin in TeV"
+emax,          r, a, 100.0,,, "Stop value for last energy bin in TeV"
+enumbins,      i, a, 20,1,200, "Number of energy bins"
+#ebinfile,      f, a, NONE,,, "Name of the file containing the energy bin definition"
+#ebingamma,     r, a, 1.0,,, "Exponent for POW energy node definition"
+statistic,     s, h, DEFAULT,DEFAULT|CSTAT|WSTAT|CHI2,, "Optimization statistic"
+calc_ts,       b, h, yes,,, "Compute TS value in each bin"
+calc_ulim,     b, h, yes,,, "Compute upper limit in each bin"
+fix_srcs,      b, h, yes,,, "Fix other skymodel parameters"
+fix_bkg,       b, h, no,,, "Fix background parameters"
+#dll_sigstep,   r, h, 0.0,0.0,100.0, "Step size in standard deviations for log-like profiles"
+#dll_sigmax,    r, h, 5.0,1.0,100.0, "Maximum number of standard deviations for log-like profiles"
+#dll_freenodes, b, h, no,,, "Free nodes not being fit when computing log-like profiles"
+
+#
+# Standard parameters
+#====================
+nthreads, i, h, 0,0,1000, "Number of parallel processes (0=use all available CPUs)"
+publish,  b, h, no,,, "Publish spectrum on VO Hub?"
+chatter,  i, h, 2,0,4, "Chattiness of output"
+clobber,  b, h, yes,,, "Overwrite existing output files with new output files?"
+debug,    b, h, no,,, "Activate debugging mode?"
+mode,     s, h, ql,,, "Mode of automatic parameters"
+logfile,  f, h, csdmatter.log,,, "Log filename"
