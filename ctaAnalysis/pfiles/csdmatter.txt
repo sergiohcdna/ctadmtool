@@ -1,0 +1,154 @@
+
+csdmatter
+=========
+
+Computes UL on annihilation cross-section
+
+
+Synopsis
+--------
+
+This script computes the upper-limits (for a given confidence level)
+on annihilation cross-section or decay lifetime of dark matter particles.
+Given an observation, a DM model is fitted, then the TS is computed using
+ctlike. If TS is less than some value, the script computes the differential
+flux at some reference energy.
+
+By the moment, csdmatter only computes for the case of annihilation of DM :)
+
+For more information refer to ctaAnalysis project or send an email to:
+Judit, Miguel or Sergio
+The DMTaskForce
+
+General parameters
+------------------
+
+inobs [file]
+    Input event list, counts cube or observation definition XML file.
+
+inmodel [file]
+    Input model XML file.
+
+srcname [string]
+    Name of the source in the source model XML file which should be used
+    for spectrum generation.
+
+expcube [file]
+    Input exposure cube file.
+
+psfcube [file]
+    Input PSF cube file.
+
+edispcube [file]
+    Input energy dispersion cube file.
+
+bkgcube [file]
+    Input background cube file.
+
+caldb [string]
+    Calibration database.
+
+irf [string]
+    Instrumental response function.
+
+(edisp = no) [boolean]
+    Apply energy dispersion to response computation?
+
+dmass [real]
+    Mass of DM particle (in TeV)
+
+sigmav [real]
+    Annihilation cross-section of DM (in cm**3/s)
+
+outfile [file]
+    Output spectrum FITS file.
+
+ebinalg <FILE|LIN|LOG|POW> [string]
+    Algorithm for defining energy bins. For FILE, the energy bins are defined
+    in a FITS file that is specified by the ebinfile parameter, for LIN
+    LOG and POW there will be enumbins energy bins spaced linearly,
+    logarithmically, or following a power law between emin and emax,
+    respectively. For POW, the parameter ebingamma specifies the slope
+    of the power law.
+
+emin [real]
+    Lower energy value for first energy bin (in TeV) if LIN or LOG
+    energy binning algorithms are used.
+
+emax [real]
+    Upper energy value for last energy bin (in TeV) if LIN or LOG
+    energy binning algorithms are used.
+
+enumbins [integer]
+    Number of energy bins if LIN or LOG energy binning algorithms are
+    used.
+
+ebinfile [file]
+    Name of the file containing the energy binning definition if ebinalg=FILE.
+    You may use csebins to generate a file with appropriate energy binning.
+
+ebingamma [real]
+    Exponent of the power law for POW energy binning. An exponent of 1.0
+    corresponds to a logarithmic energy binning.
+
+(statistic = DEFAULT) <DEFAULT|CSTAT|WSTAT|CHI2> [string]
+    Optimization statistic. DEFAULT uses the default statistic for all
+    observations, which is CSTAT or the statistic specified in the
+    observation definition XML file. CSTAT uses the C statistic for
+    all observations, WSTAT uses the W statistic for all On/Off
+    observations, and CHI2 uses the Chi squared statistic for all
+    binned or stacked observations.
+
+(calc_ts = yes) [boolean]
+    Compute TS for each spectral point?
+
+(calc_ulim = yes) [boolean]
+    Compute upper limit for each spectral point?
+
+(fix_srcs = yes) [boolean]
+    Fix other sky model parameters?
+
+(fix_bkg = no) [boolean]
+    Fix background model parameters?
+
+
+Standard parameters
+-------------------
+
+(nthreads = 0) [integer]
+    Number of parallel processes (0=use all available CPUs).
+
+(publish = no) [boolean]
+    Specifies whether the spectrum should be published on VO Hub.
+
+(chatter = 2) [integer]
+    Verbosity of the executable:
+     chatter = 0: no information will be logged
+
+     chatter = 1: only errors will be logged
+
+     chatter = 2: errors and actions will be logged
+
+     chatter = 3: report about the task execution
+
+     chatter = 4: detailed report about the task execution
+
+(clobber = yes) [boolean]
+    Specifies whether an existing source spectrum output file should be
+    overwritten.
+
+(debug = no) [boolean]
+    Enables debug mode. In debug mode the executable will dump any log file
+    output to the console.
+
+(mode = ql) [string]
+    Mode of automatic parameters (default is ql, i.e. "query and learn").
+
+(logfile = csdmatter.log) [filename]
+    Log filename.
+
+
+Related tools or scripts
+------------------------
+
+ctlike , ctulimit
