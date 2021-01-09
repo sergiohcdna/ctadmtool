@@ -35,7 +35,7 @@ setup(
         ] ,
 
     #   packages=find_packages( where='ctadmtool' )
-    packages=find_packages() ,
+    packages=find_packages( exclude=( 'old' , ) ) ,
 
     install_requires=[ 'scipy' , 'numpy' , 'matplotlib' , 'ebltable' ] ,
 
