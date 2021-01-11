@@ -47,7 +47,6 @@ modtype,       s, a, PointSource,PointSource|DiffuseSource,, "Select the Model t
 ra,            r, a, 49.946,-360, 360, "Right Ascension in degrees"
 dec,           r, a, 41.513, -90, 90, "Declination in degrees"
 map_fits,      f, a, PerseusMap.fits,,, "Spatial Template to describe gamma-ray emission"
-definition"
 statistic,     s, h, DEFAULT,DEFAULT|CSTAT|WSTAT|CHI2,, "Optimization statistic"
 calc_ts,       b, h, yes,,, "Compute TS value in each bin"
 calc_ulim,     b, h, yes,,, "Compute upper limit in each bin"
