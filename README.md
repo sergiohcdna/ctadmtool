@@ -52,6 +52,20 @@ There are also some files in *data* and *pfiles* folders:
 
 Finally, **ctaAnalysis** contains also the **csdmatter** app, based on cscripts
 
+##  Installation
+
+In order to hava **ctaAnalysis** package availabe in your system you must to be sure that *ctools* and *gammalib* are loaded (¿?). Then to install **ctaAnalysis** you have to options:
+
+1. Cloning:
+  - `$ git clone git@github.com:sergiohcdna/ctaAnalysis.git`
+  - `$ cd ctaAnalysis`
+  - `$ python -m pip install .`
+
+2. Using pip directly:
+  - `$ python -m pip install git@github.com:sergiohcdna/ctaAnalysis.git`
+
+Please note, that, if you want to contribute to the development of **csdmatter** and related classes, you must use the first option. Additionally, you can create a branch.
+
 ##  The csdmatter app
 
 The csdmatter app is based on how the cscripts are implemented within ctools. The csdmatter computes the upper-limits (at this moment, just) for annihilation cross-section for a famlily of mass points of dark matter particles. You can refer to *pfiles/csdmatter.par* and *pfiles/csdmatter.txt* to check the full list of input parameters, and the help of the app.
