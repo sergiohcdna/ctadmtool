@@ -54,7 +54,7 @@ Finally, **ctaAnalysis** contains also the **csdmatter** app, based on cscripts
 
 ##  Installation
 
-In order to hava **ctaAnalysis** package availabe in your system you must to be sure that *ctools* and *gammalib* are loaded (¿?). Then to install **ctaAnalysis** you have to options:
+In order to hava **ctaAnalysis** package availabe in your system you must to be sure that *ctools* and *gammalib* are loaded. Then to install **ctaAnalysis** you have two options:
 
 1. Cloning:
   - `$ git clone git@github.com:sergiohcdna/ctaAnalysis.git`
