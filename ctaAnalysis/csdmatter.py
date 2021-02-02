@@ -396,7 +396,8 @@ class csdmatter( ctools.csobservation ) :
 
 
         #   Set reference energy for calculations
-        eref = gammalib.GEnergy( dmmass / 2.0 , 'TeV' )
+        geref = gammalib.GEnergy( dmmass , 'TeV' )
+        gemin = gammalib.GEnergy( self[ 'emin' ] , 'TeV' )
 
         #   Create file with flux according to process
         #   Well, at this moment, just annihilation :P
@@ -428,7 +429,7 @@ class csdmatter( ctools.csobservation ) :
         #   for the source of interest
         srcmodel = self.obs().models()[ self[ 'srcname' ].string() ]
         srcspec  = srcmodel.spectral()
-        theoflux = srcspec.eval( eref )
+        theoflux = srcspec.flux( gemin , geref )
 
         #   Header
         self._log_header1( gammalib.TERSE , 'Fitting DM Model' )
@@ -445,7 +446,7 @@ class csdmatter( ctools.csobservation ) :
         #       - Scale factor computed to obtain the UL on sigmav
         #   This may be change when including Spectral class
         #   for DM annihilation
-        result = { 'energy'    : eref.TeV() ,
+        result = { 'energy'    : eref.TeV() / 2. ,
                    'mass'      : dmmass ,
                    'flux'      : 0.0 ,
                    'flux_err'  : 0.0 ,
@@ -520,7 +521,8 @@ class csdmatter( ctools.csobservation ) :
 
                     result[ 'ulimit' ]    = ulimit_value * eref.MeV() * \
                                             eref.MeV() * gammalib.MeV2erg
-                    scfactor              = ulimit_value / theoflux
+                    flimit_value          = ulimit.flux_ulimit()
+                    scfactor              = flimit_value / theoflux
                     result[ 'sc_factor' ] = scfactor
                     result[ 'sigma_lim' ] = scfactor * 10**( self[ 'logsigmav' ].real() )
 
