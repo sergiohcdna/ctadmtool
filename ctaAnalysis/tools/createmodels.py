@@ -15,12 +15,10 @@ MODEL_TYPES   = ( 'PointSource' , 'DiffuseSource' )
 SPATIAL_TYPE  = ( 'PointSource' , 'DiffuseMap' )
 SPECTRAL_TYPE = ( 'FileFunction' )
 
-class dm_spectral_xml() :
+class dm_spectral() :
 
-    def __init__( self , spec_type , fname ,
-        minval=0.0 , maxval=1.e+3 , norm_free=True ) :
+    def __init__( self , fname , minval=0.0 , maxval=1.e+3 , norm_free=True ) :
 
-        self._spectral_type = spec_type
         self._file          = fname
         self._min_val       = minval
         self._max_val       = maxval
@@ -78,22 +76,24 @@ class dm_spectral_xml() :
     def _set_ffspectrum( file , min_val=0.0 ,
         max_val=1.e+8 , norm_free=True ) :
 
-        spectrum = gammalib.GXmlElement( ( 'spectrum type="FileFunction" ' +
-            'file="{0}"'.format( file ) ) )
-        spectrum.append( ( 'parameter scale="1.0" name="Normalization" ' +
-            'min="{:.2f}" max="{:.2e}" '.format( min_val , max_val ) +
-            'value="1.0" free="{0}"'.format( int( norm_free ) ) ) )
+        #   Create GModelSpectralFunc
+        spectrum = gammalib.GModelSpectralFunc( file , 1.0 )
+
+        #   Set min and max value
+        norm     = spectrum[ 'Normalization' ]
+        norm.factor_min( min_val )
+        norm.factor_max( max_val )
 
         return spectrum
 
-    def xml_spectrum( self ) :
+    def dmspectrum( self ) :
 
-        xml = self._set_ffspectrum( self._file , self._min_val ,
+        dmspec = self._set_ffspectrum( self._file , self._min_val ,
             self._max_val , self._is_norm_free )
 
-        return xml
+        return dmspec
 
-class dm_pointsource_xml() :
+class dm_pointsource() :
 
     def __init__( self , srcra , srcdec , ra_free=False , dec_free=False ) :
 
@@ -101,7 +101,6 @@ class dm_pointsource_xml() :
         self._dec          = srcdec
         self._is_ra_free   = ra_free
         self._is_dec_free  = dec_free
-        self._spatial_type = 'PointSource'
 
     @property
     def ra( self ) :
@@ -151,37 +150,39 @@ class dm_pointsource_xml() :
 
         return
 
-    @property
-    def spatial_type( self ) :
-
-        return self._spatial_type
-
     @staticmethod
     def _set_ps( ra , dec , ra_free=False , dec_free=False ) :
 
-        spatial = gammalib.GXmlElement( 'spatialModel type="PointSource"' )
-        spatial.append( ( 'parameter name="RA" scale="1.0" ' +
-            'value="{:2f}" min="-360" '.format( ra ) +
-            'max="360" free="{0}"'.format( int( ra_free ) ) ) )
-        spatial.append( ( 'parameter name="DEC" scale="1.0" ' +
-            'value="{:2f}" min="-90" '.format( dec ) +
-            'max="90" free="{0}"'.format( int( dec_free ) ) ) )
+        #   Creating SkyDir object
+        srcdir  = gammalib.GSkyDir()
+        srcdir.radec_deg( ra , dec )
+
+        #   Create PointSource model
+        spatial = gammalib.GModelSpatialPointSource( srcdir )
+
+        #   check if it's needed to free, then set to free
+        if ra_free :
+
+            spatial[ 'RA' ].free()
+
+        if dec_free :
+
+            spatial[ 'DEC' ].free()
 
         return spatial
 
-    def xml_spatial( self ) :
+    def spatial( self ) :
 
-        xml = self._set_ps( self._ra , self._dec ,
+        dmspat = self._set_ps( self._ra , self._dec ,
             self._is_ra_free , self._is_dec_free )
 
-        return xml
+        return dmspat
 
-class dm_extended_xml() :
+class dm_extended() :
 
     def __init__( self , map_fits ) :
 
         self._fits         = map_fits
-        self._spatial_type = 'DiffuseMap'
 
     @property
     def fits_file( self ) :
@@ -195,80 +196,37 @@ class dm_extended_xml() :
 
         return
 
-    @property
-    def spatial_type( self ) :
+    def spatial( self ) :
 
-        return self._spatial_type
+        dmspat = gammalib.GModelSpatialDiffuseMap( self._fits )
 
-    @staticmethod
-    def _set_diffmap( map_fits ) :
+        return dmspat
 
-        spatial = gammalib.GXmlElement( ( 'spatialModel type="DiffuseMap" ' +
-            'file="{0}" normalize="1"'.format( map_fits ) ) )
-        spatial.append( ( 'parameter scale="1" name="Prefactor" ' +
-            'min="0.001" max="1.e+5" value="1" free="0"/' ) )
-
-        return spatial
-
-
-    def xml_spatial( self ) :
-
-        xml = self._set_diffmap( map_fits )
-
-        return xml
-
-# @ValidValue( '_dec' , min_val=-90 , max_val=90 )
-# @ValidValue( '_ra' , min_val=-360 , max_val=360 )
-# @ValidString( '_file' , empty_allowed=False )
-# @ValidString( '_modtype' , empty_allowed=False , options=MODEL_TYPES )
-# @ValidString( '_name' , empty_allowed=False )
 class DMModel() :
 
-    def __init__( self , name , modtype ,
-        xml_spec , xml_spat , tscalc=True ) :
+    def __init__( self , name , spec , spat , tscalc=True ) :
 
-        self._name         = name
-        self._modtype      = modtype
-        self._tscalc       = tscalc
-        self._xml_spectral = xml_spec
-
-        if self._modtype == 'PointSource' :
-
-            if not xml_spat.spatial_type == self._modtype :
-
-                raise AssertionError( ( 'Spatial component ' +
-                    'must be of the same type as the source ' +
-                    'model: {0}'.format( self._modtype ) ) )
-
-        if self._modtype == 'DiffuseSource' :
-
-            if not 'Diffuse' in xml_spat.spatial_type :
-
-                raise AssertionError( ( 'Spatial component ' +
-                    'must be of the same type as the source ' +
-                    'model: {0}'.format( self._modtype ) ) )
-
-        self._xml_spatial  = xml_spat
+        self._name     = name
+        self._tscalc   = tscalc
+        self._spectral = spec
+        self._spatial  = spat
 
     @staticmethod
-    def _set_model( name , modtype , spectrum , spatial , compute_ts=True ) :
+    def _set_model( name , spectrum , spatial , compute_ts=True ) :
 
-        srcxml = gammalib.GXmlElement( ( 'source name="{0}" '.format( name ) +
-            'type="{0}" '.format( modtype ) +
-            'tscalc="{0}"'.format( int( compute_ts ) ) ) )
-        spec   = spectrum.xml_spectrum()
-        spat   = spatial.xml_spatial()
+        source = gammalib.GModelSky( spatial , spectrum )
 
-        srcxml.append( spec )
-        srcxml.append( spat )
+        #   Set name of the source
+        source.name( name )
 
-        source = gammalib.GModelSky( srcxml )
+        #   Set computation of TS
+        source.tscalc( compute_ts )
 
         return source
 
     def model( self ) :
 
-        src  = self._set_model( self._name , self._modtype ,
-            self._xml_spectral , self._xml_spatial , self._tscalc )
+        src  = self._set_model( self._name , self._spectral ,
+            self._spatial , self._tscalc )
 
         return src
