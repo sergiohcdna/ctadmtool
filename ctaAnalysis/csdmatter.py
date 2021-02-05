@@ -323,24 +323,27 @@ class csdmatter( ctools.csobservation ) :
         srcname = self[ 'srcname' ].string()
         fname   = '{0}_dmflux_mpoint{1}.txt'.format( srcname , i )
 
-        xmlspec = cmodels.dm_spectral_xml( spectype , fname ,
+        spec    = cmodels.dm_spectral( fname ,
             minval=minval , maxval=maxval )
+        dmspec  = spec.dmspectrum()
 
         #   Now create the XML element for the extended part
         #   according to the Model type
         if self[ 'modtype' ].string() == 'PointSource' :
 
-            xmlspat = cmodels.dm_pointsource_xml( self[ 'ra' ].real() ,
+            spat   = cmodels.dm_pointsource( self[ 'ra' ].real() ,
                 self[ 'dec' ].real() )
+            dmspat = spat.spatial()
 
         elif self[ 'modtype' ].string() == 'DiffuseSource' :
 
-            xmlspat = dm_extended_xml( self[ 'map_fits' ].filename() )
+            spat   = dm_extended( self[ 'map_fits' ].filename() )
+            dmspat = spat.spatial()
 
         #   Then generate GModel from GXmlElement
         #   This must avoid to create a lot of XML Templates
         #   to specify DM models :P
-        dmmod   = cmodels.DMModel( srcname , modtype , xmlspec , xmlspat )
+        dmmod      = cmodels.DMModel( srcname , dmspec , dmspat )
 
         #   Return
         return dmmod.model()
@@ -355,29 +358,16 @@ class csdmatter( ctools.csobservation ) :
         Gmodel for bkg
         """
 
-        #   XmlElement for the spectrum part
-        spectrum = gammalib.GXmlElement( 'spectrum type="PowerLaw"' )
-
-        #   Append parameters for the powerlaw
-        spectrum.append( 'parameter name="Prefactor" value="1" error="0" ' +
-            'scale="1" min="0.001" max="1000" free="1"' )
-        spectrum.append( 'parameter name="Index" value="0" error="0" ' +
-            'scale="1" min="-5" max="5" free="1"' )
-        spectrum.append( 'parameter name="Scale" value="1" ' +
-            'scale="1000000" min="0.01" max="1000" free="0"' )
-
-        #   XmlElement for source
-        bkgxml = gammalib.GXmlElement( 'source name="CTABackgroundModel" ' +
-            'type="CTAIrfBackground" instrument="CTA"' )
-
-        #   Append spectral part
-        bkgxml.append( spectrum )
-
-        #   Then create GModel
-        bkgmodel = gammalib.GCTAModelIrfBackground( bkgxml )
-
+        #   spectral correction
+        genergy = gammalib.GEnergy( 1 , 'TeV' )
+        spectral = gammalib.GModelSpectralPlaw( 1 , 0 , genergy )
+        
+        # create background model
+        bkgmodel = gammalib.GCTAModelIrfBackground( spectral )
+        bkgmodel.name( 'Background' )
+        bkgmodel.instruments( 'CTA' )
+        
         return bkgmodel
-
 
     def _fit_mass_point( self , i ) :
         """
@@ -397,7 +387,7 @@ class csdmatter( ctools.csobservation ) :
 
         #   Set reference energy for calculations
         geref = gammalib.GEnergy( dmmass / 2. , 'TeV' )
-        gemin = gammalib.GEnergy( self[ 'emin' ] , 'TeV' )
+        gemin = gammalib.GEnergy( self[ 'emin' ].real() * 1.e-3 , 'TeV' )
         gemax = gammalib.GEnergy( dmmass , 'TeV' )
 
         #   Create file with flux according to process
@@ -426,7 +416,7 @@ class csdmatter( ctools.csobservation ) :
 
         #   Now, all the analysis is the same as in csspec script
 
-        #   Get expected dmflux at reference energy
+        #   Get expected dmflux between emin and emax
         #   for the source of interest
         srcmodel = self.obs().models()[ self[ 'srcname' ].string() ]
         srcspec  = srcmodel.spectral()
