@@ -64,6 +64,7 @@ class csdmatter( ctools.csobservation ) :
         self._binned_mode = False
         self._onoff_mode  = False
         self._nthreads    = 0
+        self._masses      = None
 
         #   Return
         return
@@ -88,12 +89,13 @@ class csdmatter( ctools.csobservation ) :
                   'onoff_mode'  : self._onoff_mode ,
                  # 'dmass'       : self._dmass ,
                  # 'sigmav'      : self._sigmav ,
-                  'nthreads'    : self._nthreads }
+                  'nthreads'    : self._nthreads ,
+                  'masses'      : self._masses }
 
         #   Return dictionary
         return state
 
-    def _setstate__( self ) :
+    def __setstate__( self , state ) :
         """
         Extend ctools.csobservation getstate method to include some members
         """
@@ -101,11 +103,13 @@ class csdmatter( ctools.csobservation ) :
         #   Set dictionary
         ctools.csobservation.__setstate__( self , state[ 'base' ] )
 
+        self._fits        = state[ 'fits' ]
         self._binned_mode = state[ 'binned_mode' ]
         self._onoff_mode  = state[ 'onoff_mode' ]
         # self._dmass       = state[ 'dmass' ]
         # self._sigmav      = state[ 'sigmav' ]
         self._nthreads    = state[ 'nthreads' ]
+        self._masses      = state[ 'masses' ]
 
         #   Return
         return
@@ -594,14 +598,14 @@ class csdmatter( ctools.csobservation ) :
 
         #   I need to check how to use multiprocessing
         #   I hope, this is not caused by a bug in the code
-        if self._nthreads > 1:
+        if self._nthreads > 1 :
 
             #   force to set nthreads to one
 
             self._nthreads = 1
             # Compute energy bins
-            # args        = [ ( self, '_fit_mass_point', i )
-            #                for i in range( self._masses.size() ) ]
+            # args        = [ ( self , '_fit_mass_point' , i )
+            #     for i in range( self._masses.size() ) ]
             # poolresults = mputils.process( self._nthreads , mputils.mpfunc , args )
 
             # # Construct results
