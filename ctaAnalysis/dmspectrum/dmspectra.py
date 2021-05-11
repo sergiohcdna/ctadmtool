@@ -387,7 +387,7 @@ class dmspectrum() :
         #   Interpolating function using interp2d
         #   By default, I am only using linear interpolation
         dminterp = interp2d( masses , logxvals , dndlogx , \
-            kind='linear' , fill_value=1.e-40 )
+            kind='linear' , fill_value=0.0 )
 
         #   Return
         return dminterp
