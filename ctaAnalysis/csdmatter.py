@@ -28,9 +28,6 @@ import os
 import math
 import numpy as np
 
-from ctaAnalysis.dmspectrum.dmflux import dmflux_anna
-import ctaAnalysis.tools.createmodels as cmodels
-
 #====================================================================#
 #                                                                    #
 #   First, add a path to PFILES environment path to be able to load  #
