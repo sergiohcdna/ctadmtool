@@ -1,0 +1,29 @@
+# Change Log
+All notable changes to this project will be documented in this file.
+ 
+The format is based on [Keep a Changelog](http://keepachangelog.com/)
+and this project adheres to [Semantic Versioning](http://semver.org/).
+
+[Sergio]
+
+## [0.1.1] - 2021-06-08
+  
+Long explanation of commits added in ctaAnalysis v0.1.1
+ 
+### Added
+
+- examples/create_dmtable.py  : Show how-to use GModelSpectralTable for dark matter spectral models
+- notebooks/dmspectraltable   : Light version of examples/create_dmtable.py
+- notebooks/loaddmspectra     : Load PPPC4DMID tables and save to a fits file
+- notebooks/plottingdmSpectra : Plot spectra. Use fits file from loaddmspectra notebook
+
+### Changed
+  
+- [gammalib models]      : Avoid use of XML constructors when creating spectral models
+- [dm spectral model]    : Use gammalib.GModelSpectralTable to create multiple dm-spectral models on the fly
+- [csdmatter parameters] : Add dmspecfits option to pass a fits file obtained from create_dmtable script
+
+### Fixed
+ 
+- [multiprocessing] : Using GVector as container for masses points causes the following error "python TypeError: can't pickle SwigPyObject objects". Change masses container to a list.
+
