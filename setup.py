@@ -9,7 +9,7 @@ setup(
 
     name='ctaAnalysis' ,
 
-    version='0.1.0' ,
+    version='0.1.1' ,
 
     description='A tool for indirect dark matter searches with CTA' ,
 
