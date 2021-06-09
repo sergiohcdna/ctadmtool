@@ -300,7 +300,7 @@ class csdmatter( ctools.csobservation ) :
         #   I hope this issue change when implementing the
         #   GModelSpectralDMMmodel class
         minval  = 1.0e-20
-        maxval  = 1.0e+100
+        maxval  = 1.0e+20
 
         #   Model type
         modtype  = self['modtype'].string()
@@ -324,7 +324,7 @@ class csdmatter( ctools.csobservation ) :
         dmspec['Channel'].value(ch_number)
         dmspec['Channel'].scale(1)
         dmspec['Normalization'].value(fluxnorm)
-        dmspec['Normalization'].range(0.0, 1.0e+60)
+        dmspec['Normalization'].range(minval, maxval)
 
         #   Mass and Channel parameters should be fixed
         #   But, just to be sure
