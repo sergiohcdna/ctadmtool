@@ -26,7 +26,6 @@ from cscripts import mputils
 
 import os
 import math
-import numpy as np
 
 #====================================================================#
 #                                                                    #
