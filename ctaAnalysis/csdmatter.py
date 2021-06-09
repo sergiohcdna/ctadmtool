@@ -3,6 +3,7 @@
 # Perform Analysis for DM models
 #
 # Copyright (C) 2020 Sergio, Judit, Miguel
+# Modified 2021 Sergio
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +25,7 @@ import ctools
 from cscripts import mputils
 
 import os
+import math
 import numpy as np
 
 from ctaAnalysis.dmspectrum.dmflux import dmflux_anna
@@ -40,6 +42,13 @@ import ctaAnalysis.tools.createmodels as cmodels
 BASEDIR = os.path.abspath( os.path.dirname( __file__ ) )
 pfiles  = os.path.join( BASEDIR , 'pfiles' )
 os.environ[ 'PFILES' ] += os.pathsep + pfiles
+
+channels = {0:'eL', 1:'eR', 2:'e', 3:'MuL', 4:'MuR',
+    5:'Mu', 6:'TauL', 7:'TauR', 8:'Tau', 9:'q',
+    10:'c', 11:'b', 12:'t', 13:'WL', 14:'WT',
+    15:'W', 16:'ZL', 17:'ZT', 18:'Z', 19:'g',
+    20:'Gamma', 21:'h', 22:'Nue', 23:'NuMu', 24:'NuTau',
+    25:'Ve', 26:'VMu', 27:'VTau'}
 
 # =============== #
 # csdmatter class #
@@ -172,6 +181,7 @@ class csdmatter( ctools.csobservation ) :
         self[ 'emin' ].real()
         self[ 'emax' ].real()
         self[ 'modtype' ].string()
+        self['dmspecfits'].filename()
 
         #   Query parameters according to the Source Model type
         if self[ 'modtype' ].string() == 'PointSource' :
@@ -187,12 +197,10 @@ class csdmatter( ctools.csobservation ) :
         #   Set mass points
         self._mlogspace()
 
-        # self[ 'dmass' ].real()
-        # self[ 'sigmav' ].real()
-
         #   Read ahead output parameters
         if self._read_ahead() :
             self[ 'outfile' ].filename()
+
 
         #   Write into logger
         self._log_parameters( gammalib.TERSE )
@@ -240,65 +248,40 @@ class csdmatter( ctools.csobservation ) :
 
         mmin    = self[ 'mmin' ].real()
         mmax    = self[ 'mmax' ].real()
-        mlogmin = np.log10( mmin )
-        mlogmax = np.log10( mmax )
+        mlogmin = math.log10( mmin )
+        mlogmax = math.log10( mmax )
         mpoints = self[ 'mnumpoints' ].integer()
 
-        #   GVector
-        masses  = gammalib.GVector( mpoints )
+        #   initialize an empty list
+        # masses  = gammalib.GVector( mpoints )
+        masses  = []
 
         #   Compute width
         width = ( mlogmax - mlogmin ) / ( mpoints - 1 )
 
         for index in range( mpoints ) :
 
-            masses[ index ] = 10**( mlogmin + index * width )
+            # masses[ index ] = 10**( mlogmin + index * width )
+            masses.append(math.pow(10., mlogmin + index * width))
 
         self._masses = masses
 
         #   Return
         return
 
-    def _gen_dmfile_anna( self , i ) :
-        """
-        Generate file with gamma-ray flux from
-        dark matter interactions
+    def _get_channel_key(self):
 
-        Return
-        ------
-        txt file 
-        """
+        #   channel from input parameters
+        channel = self['channel'].string()
+        ckey    = 0
 
-        sigmav    = 10**( self[ 'logsigmav' ].real() )
-        astfactor = 10**( self[ 'logastfactor' ].real() )
-        mass      = self._masses[ i ]
+        for key, value in channels.items():
+             if channel.upper() == value.upper():
+                 ckey = key
 
-        #   Get emin and emax
-        emin  = self[ 'emin' ].real()
-        emax  = mass * 0.95
+        return ckey
 
-        hasEW = self[ 'ewcorrections' ].boolean()
-
-        #   create instance of dmspectrum class to compute flux
-        dmflux = dmflux_anna( sigmav , astfactor , mass , emin , emax ,
-            self[ 'channel' ].string() , self[ 'redshift' ].real() ,
-            eblmod=self[ 'eblmodel' ].string() , has_EW=hasEW )
-
-        #   Get flux
-        dphide = dmflux.flux()
-
-        #   Get energies used to compute the flux
-        energies = dmflux.energy
-
-        #   And, saving to file using numpy save
-        dummyfn = ( '{0}_dmflux_mpoint{1}.txt'.format( self[ 'srcname' ].string() , i ) )
-        data    = np.array( ( energies * 1.e+3 , dphide * 1.e-3 ) ).transpose()
-        np.savetxt( dummyfn , data , fmt='%.5e' , delimiter=' ' )
-
-        #   Return
-        return
-
-    def _gen_model( self , i ) :
+    def _gen_model_anna(self, i) :
         """
         in-fly Creation of GModel
 
@@ -316,64 +299,83 @@ class csdmatter( ctools.csobservation ) :
         #   parameter
         #   I hope this issue change when implementing the
         #   GModelSpectralDMMmodel class
-        minval  = 0.0
-        maxval  = 1.e+10
+        minval  = 1.0e-20
+        maxval  = 1.0e+100
 
         #   Model type
-        modtype  = self[ 'modtype' ].string()
-        spectype = 'FileFunction'
+        modtype  = self['modtype'].string()
 
         #   recover filename created with _gen_dmfile_anna
-        srcname = self[ 'srcname' ].string()
-        fname   = '{0}_dmflux_mpoint{1}.txt'.format( srcname , i )
+        srcname = self['srcname'].string()
 
-        spec    = cmodels.dm_spectral( fname ,
-            minval=minval , maxval=maxval )
-        dmspec  = spec.dmspectrum()
+        #   Create spectral container using GModelSpectralTable
+        #   and setup the mass, channel and normalization of the model
+        ch_number = self._get_channel_key()
+        dmmass    = self._masses[i]
+        jfactor   = math.pow(10., self['logastfactor'].real())
+        sigmav    = math.pow(10., self['logsigmav'].real())
+        fluxnorm  = sigmav * jfactor / 8. / gammalib.pi / dmmass / dmmass
+        fluxnorm *= 1.e-3
+        ffile     = self['dmspecfits'].filename()
 
-        #   Now create the XML element for the extended part
-        #   according to the Model type
+        dmspec    = gammalib.GModelSpectralTable()
+        dmspec.load(ffile)
+        dmspec['Mass'].value(dmmass)
+        dmspec['Channel'].value(ch_number)
+        dmspec['Channel'].scale(1)
+        dmspec['Normalization'].value(fluxnorm)
+        dmspec['Normalization'].range(0.0, 1.0e+60)
+
+        #   Mass and Channel parameters should be fixed
+        #   But, just to be sure
+        dmspec['Mass'].fix()
+        dmspec['Channel'].fix()
+        dmspec['Normalization'].free()
+
+        #   Creating Spatial container
         if self[ 'modtype' ].string() == 'PointSource' :
 
-            spat   = cmodels.dm_pointsource( self[ 'ra' ].real() ,
-                self[ 'dec' ].real() )
-            dmspat = spat.spatial()
+            ra     = self['ra'].real()
+            dec    = self['dec'].real()
+            dmspat = gammalib.GModelSpatialPointSource(ra, dec)
 
         elif self[ 'modtype' ].string() == 'DiffuseSource' :
 
-            spat   = dm_extended( self[ 'map_fits' ].filename() )
-            dmspat = spat.spatial()
+            mfile  = self['map_fits'].filename()
+            dmspat = gammalib.GModelSpatialDiffuseMap(mfile)
 
-        #   Then generate GModel from GXmlElement
+        #   Then generate GModel from spatial and spectral part
         #   This must avoid to create a lot of XML Templates
         #   to specify DM models :P
-        dmmod      = cmodels.DMModel( srcname , dmspec , dmspat )
+        dmmodel = gammalib.GModelSky(dmspat, dmspec)
+        dmmodel.name(srcname)
+        dmmodel.tscalc(True)
 
         #   Return
-        return dmmod.model()
+        return dmmodel
 
-    def _gen_bkgmodel( self ) :
-        """
-        Create bkg model. This model assume that the bkg type
-        is modeled by the IRF provided by the user.
+    # def _gen_bkgmodel(self) :
+    #     """
+    #     Create bkg model. This model assume that the bkg type
+    #     is modeled by the IRF provided by the user.
 
-        Return
-        ------
-        Gmodel for bkg
-        """
+    #     Return
+    #     ------
+    #     Gmodel for bkg
+    #     """
 
-        #   spectral correction
-        genergy = gammalib.GEnergy( 1 , 'TeV' )
-        spectral = gammalib.GModelSpectralPlaw( 1 , 0 , genergy )
+    #     #   spectral correction
+    #     genergy = gammalib.GEnergy(1, 'TeV')
+    #     spectral = gammalib.GModelSpectralPlaw(1, 0, genergy)
         
-        # create background model
-        bkgmodel = gammalib.GCTAModelIrfBackground( spectral )
-        bkgmodel.name( 'Background' )
-        bkgmodel.instruments( 'CTA' )
+    #     # create background model
+    #     bkgmodel = gammalib.GCTAModelIrfBackground(spectral)
+    #     bkgmodel.name('Background')
+    #     bkgmodel.instruments('CTA')
         
-        return bkgmodel
+    #     return bkgmodel
 
-    def _fit_mass_point( self , i ) :
+    def _fit_mass_point(self, i) :
         """
         Fit Model to DATA in the observation for a specific
         value of dark matter mass
@@ -383,54 +385,67 @@ class csdmatter( ctools.csobservation ) :
         Result , dictionary with relevant fit results
         """
 
-        #   Get value of mass and convert to TeV
-        dmmass = 1.e-3 * self._masses[ i ]
+        #   Get value of mass (already in GeV)
+        dmmass = self._masses[i]
 
-        self._log_header2( gammalib.EXPLICIT , 'Mass point ' + str( i + 1 ) )
+        self._log_header2(gammalib.EXPLICIT, 'Mass point ' + str(i + 1))
 
-
-        #   Set reference energy for calculations
-        geref = gammalib.GEnergy( dmmass / 2. , 'TeV' )
-        gemin = gammalib.GEnergy( self[ 'emin' ].real() * 1.e-3 , 'TeV' )
-        gemax = gammalib.GEnergy( dmmass , 'TeV' )
+        #   Set reference energy and energy range for calculations
+        geref = gammalib.GEnergy(dmmass / 2., 'GeV')
+        gemin = gammalib.GEnergy(self['emin'].real(), 'GeV')
+        gemax = gammalib.GEnergy(dmmass, 'GeV')
 
         #   Create file with flux according to process
         #   Well, at this moment, just annihilation :P
         self._log_header1( gammalib.TERSE , 'Compute DM model' )
 
-        if self[ 'process' ].string() == 'ANNA' :
+        if self['process'].string() == 'ANNA' :
 
-            self._gen_dmfile_anna( i )
+            thisdmmodel = self._gen_model_anna(i)
+
+        # elif self['process'].string() == 'DEC' :
+
+        #     print( 'Not Implemented' )
+        #     sys.exit()
 
         #   Then create GModel containers for source and bkg
-        thisdmmodel  = self._gen_model( i )
-        thisbkgmodel = self._gen_bkgmodel()
+        # thisbkgmodel = self._gen_bkgmodel()
 
         #   GModels source and append dm and bkg models
-        mymodels = gammalib.GModels()
-        mymodels.append( thisdmmodel )
-        mymodels.append( thisbkgmodel )
+        # mymodels = gammalib.GModels()
+        # mymodels.append(thisdmmodel)
+        # mymodels.append(thisbkgmodel)
 
         #   Show mymodels in logfile, just to check that everything is Ok!
-        self._log_string( gammalib.EXPLICIT , str( mymodels ) )
+        self._log_string(gammalib.EXPLICIT , str(self.obs().models()))
 
-        self._log_header1( gammalib.TERSE , 'Set or replace by Dark matter model' )
+        self._log_header1(gammalib.TERSE, 'Set or replace by Dark matter model')
 
-        self.obs().models( mymodels )
+        for model in self.obs().models() :
+
+            if model.classname() != 'GCTAModelIrfBackground' :
+
+                self.obs().models().remove(model.name())
+
+        self.obs().models().append(thisdmmodel)
+        obssim = self.obs().copy()
 
         #   Now, all the analysis is the same as in csspec script
 
         #   Get expected dmflux between emin and emax
         #   for the source of interest
-        srcmodel = self.obs().models()[ self[ 'srcname' ].string() ]
-        srcspec  = srcmodel.spectral()
-        theoflux = srcspec.flux( gemin , gemax )
+        # srcname  = self['srcname'].string()
+        # srcmodel = obssim.models()[srcname]
+        # srcspec  = srcmodel.spectral()
+        theoflux  = thisdmmodel.spectral().flux(gemin, gemax)
+        # theoflux *= thisdmmodel.spectral()['Normalization'].value()
+        sigmav    = math.pow(10., self['logsigmav'].real())
 
         #   Header
-        self._log_header1( gammalib.TERSE , 'Fitting DM Model' )
+        self._log_header1(gammalib.TERSE, 'Fitting DM Model')
 
         #   So, at this moment interesting results to save are:
-        #       - Reference Energy
+        #       - Min and Max Energy to compute integrated fluxes
         #       - Mass of dark matter candidate
         #       - Differential flux obtained in the fit
         #       - Error
@@ -441,95 +456,101 @@ class csdmatter( ctools.csobservation ) :
         #       - Scale factor computed to obtain the UL on sigmav
         #   This may be change when including Spectral class
         #   for DM annihilation
-        result = { 'energy'    : geref.TeV() ,
-                   'mass'      : dmmass ,
-                   'flux'      : 0.0 ,
-                   'flux_err'  : 0.0 ,
-                   'TS'        : 0.0 ,
-                   'ulimit'    : 0.0 ,
-                   'sigma_ref' : 10**( self[ 'logsigmav' ].real() ) ,
-                   'sigma_lim' : 0.0 ,
-                   'sc_factor' : 0.0 }
+        result = {'e_min'     : gemin.TeV(),
+                  'e_max'     : gemax.TeV(),
+                  'mass'      : dmmass,
+                  'flux'      : 0.0,
+                  'flux_err'  : 0.0,
+                  'logL'      : 0.0,
+                  'TS'        : 0.0,
+                  'ulimit'    : 0.0,
+                  'sigma_ref' : sigmav,
+                  'sigma_lim' : 0.0 ,
+                  'sc_factor' : 0.0}
 
         #   Header for ctlike instance :)
-        self._log_header3( gammalib.EXPLICIT , 'Performing likelihood fit for mass point' )
+        self._log_header3(gammalib.EXPLICIT, 'Performing likelihood fit')
 
         #   Maximum likelihood fit via ctlike
-        like               = ctools.ctlike( self.obs() )
-        like[ 'edisp' ]    = self[ 'edisp' ].boolean()
-        like[ 'nthreads' ] = 1
+        like             = ctools.ctlike(obssim)
+        like['edisp']    = self['edisp'].boolean()
+        like['nthreads'] = 1
 
         #   Chatter
         if self._logVerbose() and self._logDebug() :
 
-            like[ 'debug' ] = True
+            like['debug'] = True
 
         like.run()
 
         #   Extract fit results
-        model    = like.obs().models()[ self[ 'srcname' ].string() ]
+        model    = like.obs().models()[self['srcname'].string()]
         spectrum = model.spectral()
         logL0    = like.obs().logL()
 
+        result['logL'] = logL0
+
         #   Write models results
-        self._log_string( gammalib.EXPLICIT , str( like.obs().models() ) )
+        self._log_string(gammalib.EXPLICIT, str(like.obs().models()))
 
         #   Continue only if logL0 is different from zero
         if logL0 != 0.0 :
 
             #   Extract TS value
-            result[ 'TS' ] = model.ts()
+            result['TS'] = model.ts()
+
 
             #   Calculation of upper-limit via ctulimit
             ulimit_value = -1.0
 
-            if self[ 'calc_ulim' ].boolean() :
+            if self['calc_ulim'].boolean() :
 
                 #   Print to log
-                self._log_header3( gammalib.EXPLICIT ,
-                                   'Computing Upper Limit' )
+                self._log_header3(gammalib.EXPLICIT,
+                                   'Computing Upper Limit')
 
                 #   Instance for ctulimit
-                ulimit              = ctools.ctulimit( like.obs() )
-                ulimit[ 'srcname' ] = self[ 'srcname' ].string()
-                ulimit[ 'eref' ]    = geref.TeV()
-                ulimit[ 'emin' ]    = gemin.TeV()
-                ulimit[ 'emax' ]    = gemax.TeV()
+                ulimit             = ctools.ctulimit(like.obs())
+                ulimit['srcname']  = self['srcname'].string()
+                ulimit['eref']     = geref.TeV()
+                ulimit['emin']     = gemin.TeV()
+                ulimit['emax']     = gemax.TeV()
 
                 #   Set chatter
                 if self._logVerbose() and self._logDebug() :
 
-                    ulimit[ 'debug' ] = True
+                    ulimit['debug'] = True
 
+                ulimit.run()
+                ulimit_value = ulimit.diff_ulimit()
                 #    Catching exceptions
-                try :
+                # try :
 
-                    ulimit.run()
-                    ulimit_value = ulimit.diff_ulimit()
+                #     ulimit.run()
+                #     ulimit_value = ulimit.diff_ulimit()
 
-                except :
+                # except :
 
-                    self._log_string( gammalib.EXPLICIT , 'UL Calculation failed :(' )
-                    ulimit_value = -1.0
+                #     self._log_string(gammalib.EXPLICIT, 'UL Calculation failed')
+                #     ulimit_value = -1.0
 
                 #   Compute quantities related to ulimit
 
                 if ulimit_value > 0.0 :
 
-                    result[ 'ulimit' ]    = ulimit_value * geref.MeV() * \
-                                            geref.MeV() * gammalib.MeV2erg
                     flimit_value          = ulimit.flux_ulimit()
+                    result[ 'ulimit' ]    = flimit_value
                     scfactor              = flimit_value / theoflux
                     result[ 'sc_factor' ] = scfactor
-                    result[ 'sigma_lim' ] = scfactor * 10**( self[ 'logsigmav' ].real() )
+                    result[ 'sigma_lim' ] = scfactor * sigmav
 
                 #   Get flux and error
-                fitted_flux = spectrum.eval( geref )
-                parvalue    = spectrum[ 0 ].value()
+                fitted_flux = spectrum.eval(geref)
+                parvalue    = spectrum[0].value()
 
                 if parvalue != 0.0 :
 
-                    rel_error = spectrum[ 0 ].error() / parvalue
+                    rel_error = spectrum[0].error() / parvalue
                     e_flux    = fitted_flux * rel_error
 
                 else :
@@ -546,42 +567,42 @@ class csdmatter( ctools.csobservation ) :
                     e_flux      *= norm
 
                 #   Convert to nuFnu
-                eref2                = geref.MeV() * geref.MeV()
-                result[ 'flux' ]     = fitted_flux * eref2 * gammalib.MeV2erg
-                result[ 'flux_err' ] = e_flux      * eref2 * gammalib.MeV2erg
+                eref2              = geref.MeV() * geref.MeV()
+                result['flux']     = fitted_flux * eref2 * gammalib.MeV2erg
+                result['flux_err'] = e_flux      * eref2 * gammalib.MeV2erg
 
                 #   Logging
-                value = '%e +/- %e' % ( result[ 'flux' ] , result[ 'flux_err' ] )
+                value = '%e +/- %e' % (fitted_flux, e_flux)
                 svmsg = ''
 
                 if self[ 'calc_ulim' ].boolean() and result[ 'ulimit' ] > 0.0 :
 
-                    value += ' [< %e]' % ( result[ 'ulimit' ] )
-                    svmsg += ' [%e]' % ( result[ 'sc_factor' ] )
+                    value += ' [< %e]' % (result['ulimit'])
+                    svmsg += ' [%e]' % (result['sc_factor'])
 
-                value += ' erg/cm**2/s'
+                value += ' 1/cm**2/s'
 
-                if self[ 'calc_ts' ].boolean() and result[ 'TS' ] > 0.0:
+                if self['calc_ts'].boolean() and result['TS'] > 0.0:
 
-                    value += ' (TS = %.3f)' % ( result[ 'TS' ] )
+                    value += ' (TS = %.3f)' % (result['TS'])
 
-                self._log_value( gammalib.TERSE , 'Flux' , value )
+                self._log_value(gammalib.TERSE, 'Flux', value)
 
                 if len( svmsg ) > 0 :
 
-                    self._log_value( gammalib.TERSE , 'ScaleFactor' , svmsg )
+                    self._log_value(gammalib.TERSE, 'ScaleFactor', svmsg)
 
         #   If logL0 == 0, then failed :(
         #   but, this does not raise any error
         else :
 
             value = 'Likelihood is zero. Something is weird. Check model'
-            self._log_value( gammalib.TERSE , 'Warning: ' , value )
+            self._log_value(gammalib.TERSE, 'Warning: ', value)
 
         #   Return
         return result
 
-    def _fit_mass_points( self ) :
+    def _fit_mass_points(self) :
         """
         Fit for GVector masses
 
@@ -590,8 +611,8 @@ class csdmatter( ctools.csobservation ) :
         results: dictionary with result for every mass point
         """
 
-        self._log_header1( gammalib.TERSE , 'Fitting models for different masses' )
-        self._log_string( gammalib.TERSE, str( self._masses ) )
+        self._log_header1(gammalib.TERSE, 'Fitting models for different masses')
+        self._log_string(gammalib.TERSE, str(self._masses))
 
         # Initialise results
         results = []
@@ -602,34 +623,33 @@ class csdmatter( ctools.csobservation ) :
 
             #   force to set nthreads to one
 
-            self._nthreads = 1
-            # Compute energy bins
-            # args        = [ ( self , '_fit_mass_point' , i )
-            #     for i in range( self._masses.size() ) ]
-            # poolresults = mputils.process( self._nthreads , mputils.mpfunc , args )
+            # self._nthreads = 1
+            # Compute for mass points
+            args        = [(self, '_fit_mass_point', i)
+                            for i in range(len(self._masses))]
+            poolresults = mputils.process(self._nthreads, mputils.mpfunc, args)
 
-            # # Construct results
-            # for i in range( self._masses.size() ) :
+            # Construct results
+            for i in range(len(self._masses)) :
 
-            #     results.append( poolresults[ i ][ 0 ] )
-            #     self._log_string( gammalib.TERSE ,
-            #         poolresults[ i ][ 1 ][ 'log' ] , False )
+                results.append(poolresults[i][0])
+                self._log_string(gammalib.TERSE,poolresults[i][1]['log'],False)
 
         # Otherwise, loop over energy bins
-        # else:
-        for i in range( self._masses.size() ) :
+        else:
+            for i in range(len(self._masses)) :
 
-            # Fit energy bin
-            result = self._fit_mass_point( i )
+                # Fit energy bin
+                result = self._fit_mass_point(i)
 
-            # Append results
-            results.append( result )
+                # Append results
+                results.append(result)
 
         # Return results
         return results
 
 
-    def _create_fits( self , results ) :
+    def _create_fits(self, results) :
         """
         Create fits file
 
@@ -639,86 +659,87 @@ class csdmatter( ctools.csobservation ) :
         """
 
         #   Create columns (><'! Now, added for n mass points')
-        nrows = self._masses.size()
+        nrows = len(self._masses)
 
-        energy       = gammalib.GFitsTableDoubleCol( 'RefEnergy' , nrows )
-        mass         = gammalib.GFitsTableDoubleCol( 'Mass' , nrows )
-        flux         = gammalib.GFitsTableDoubleCol( 'Flux' , nrows )
-        flux_err     = gammalib.GFitsTableDoubleCol( 'EFlux', nrows )
-        TSvalues     = gammalib.GFitsTableDoubleCol( 'TS' , nrows )
-        ulim_values  = gammalib.GFitsTableDoubleCol( 'UpperLimit' , nrows )
-        sigma_lim    = gammalib.GFitsTableDoubleCol( 'ULCrossSection' , nrows )
-        sigma_ref    = gammalib.GFitsTableDoubleCol( 'RefCrossSection' , nrows )
-        sc_factor    = gammalib.GFitsTableDoubleCol( 'ScaleFactor' , nrows )
+        e_min        = gammalib.GFitsTableDoubleCol('MinEnergy', nrows)
+        e_max        = gammalib.GFitsTableDoubleCol('MaxEnergy', nrows)
+        mass         = gammalib.GFitsTableDoubleCol('Mass', nrows)
+        flux         = gammalib.GFitsTableDoubleCol('Flux', nrows)
+        flux_err     = gammalib.GFitsTableDoubleCol('EFlux', nrows)
+        slogl        = gammalib.GFitsTableDoubleCol('LogL', nrows)
+        TSvalues     = gammalib.GFitsTableDoubleCol('TS', nrows)
+        ulim_values  = gammalib.GFitsTableDoubleCol('UpperLimit', nrows)
+        sigma_lim    = gammalib.GFitsTableDoubleCol('ULCrossSection', nrows)
+        sigma_ref    = gammalib.GFitsTableDoubleCol('RefCrossSection', nrows)
+        sc_factor    = gammalib.GFitsTableDoubleCol('ScaleFactor', nrows)
 
-        energy.unit( 'TeV' )
-        mass.unit( 'TeV' )
-        flux.unit( 'erg/cm2/s' )
-        flux_err.unit( 'erg/cm2/s' )
-        ulim_values.unit( 'erg/cm2/s' )
-        sigma_lim.unit( 'cm3/s' )
-        sigma_ref.unit( 'cm3/s' )
+        e_min.unit('TeV')
+        e_max.unit('TeV')
+        mass.unit('TeV')
+        flux.unit('erg/cm2/s')
+        flux_err.unit('erg/cm2/s')
+        ulim_values.unit('1/cm2/s')
+        sigma_lim.unit('cm3/s')
+        sigma_ref.unit('cm3/s')
 
         #   Fill fits
-        for i , result in enumerate( results ) :
+        for i, result in enumerate(results) :
 
-            energy[ i ]      = result[ 'energy' ]
-            mass[ i ]        = result[ 'mass' ]
-            flux[ i ]        = result[ 'flux' ]
-            flux_err[ i ]    = result[ 'flux_err' ]
-            TSvalues[ i ]    = result[ 'TS' ]
-            ulim_values[ i ] = result[ 'ulimit' ]
-            sigma_lim[ i ]   = result[ 'sigma_lim' ]
-            sigma_ref[ i ]   = result[ 'sigma_ref' ]
-            sc_factor[ i ]   = result[ 'sc_factor' ]
+            e_min[i]       = result['e_min']
+            e_max[i]       = result['e_max']
+            mass[i]        = result['mass']
+            flux[i]        = result['flux']
+            flux_err[i]    = result['flux_err']
+            slogl[i]       = result['logL']
+            TSvalues[i]    = result['TS']
+            ulim_values[i] = result['ulimit']
+            sigma_lim[i]   = result['sigma_lim']
+            sigma_ref[i]   = result['sigma_ref']
+            sc_factor[i]   = result['sc_factor']
 
         #   Initialise FITS Table with extension "DMATTER"
-        table = gammalib.GFitsBinTable( nrows )
-        table.extname( 'DMATTER' )
+        table = gammalib.GFitsBinTable(nrows)
+        table.extname('DMATTER')
 
         #   Add Header for compatibility with gammalib.GMWLSpectrum
-        table.card( 'INSTRUME' , 'CTA' , 'Name of Instrument' )
-        table.card( 'TELESCOP' , 'CTA' , 'Name of Telescope' )
+        table.card('INSTRUME', 'CTA', 'Name of Instrument')
+        table.card('TELESCOP', 'CTA', 'Name of Telescope')
 
         #   Append filled columns to fits table
-        table.append( energy )
-        table.append( mass )
-        table.append( flux )
-        table.append( flux_err )
-        table.append( TSvalues )
-        table.append( ulim_values )
-        table.append( sigma_lim )
-        table.append( sigma_ref )
-        table.append( sc_factor )
+        table.append(e_min)
+        table.append(e_max)
+        table.append(mass)
+        table.append(flux)
+        table.append(flux_err)
+        table.append(slogl)
+        table.append(TSvalues)
+        table.append(ulim_values)
+        table.append(sigma_lim)
+        table.append(sigma_ref)
+        table.append(sc_factor)
 
         #   Create the FITS file now
         self._fits = gammalib.GFits()
-        self._fits.append( table )
+        self._fits.append(table)
 
         #   Return
         return
 
-    def run( self ) :
+    def run(self) :
         """
         Run the script
         """
 
         #   Screen logging
         if self._logDebug() :
-            self._log.cout( True )
+            self._log.cout(True)
 
         #   Getting parameters
         self._get_parameters()
-        srcname = self[ 'srcname' ].string()
+        srcname = self['srcname'].string()
 
         #   Write input observation container into logger
-        self._log_observations( gammalib.NORMAL , self.obs() , 'Input observation' )
-
-        # for i in range( self[ 'mnumpoints' ].integer() ) :
-
-        #     self._gen_dmfile_anna( i )
-        #     dmmodel = self._gen_model( i )
-        #     print( dmmodel.spectral().filename() )
+        self._log_observations(gammalib.NORMAL, self.obs(), 'Input observation')
 
         #   Adjust model parameters dependent on input user parameters
         # self._adjust_models()
@@ -727,17 +748,10 @@ class csdmatter( ctools.csobservation ) :
         results = self._fit_mass_points()
 
         #   Create FITS file
-        self._create_fits( results )
-
-        #   Erasing file
-        for index in range( self._masses.size() ) :
-
-
-            fname = '{0}_dmflux_mpoint{1}.txt'.format( srcname , index )
-            os.remove( fname )
+        self._create_fits(results)
 
         #   Publishing...?
-        if self[ 'publish' ].boolean() :
+        if self['publish'].boolean() :
             self.publish()
 
         #   Return
@@ -749,30 +763,30 @@ class csdmatter( ctools.csobservation ) :
         """
 
         #   Write header
-        self._log_header1( gammalib.TERSE , 'Save dmatter analysis results' )
+        self._log_header1(gammalib.TERSE, 'Save dmatter analysis results')
 
         #   Continue only if FITS file is valid
         if self._fits != None :
 
             #   Get outmap parameter
-            outfile = self[ 'outfile' ].filename()
+            outfile = self['outfile'].filename()
 
             #   Log file name
-            self._log_value( gammalib.NORMAL, 'dmatter file' , outfile.url() )
+            self._log_value(gammalib.NORMAL, 'dmatter file', outfile.url())
 
             #   Save results
-            self._fits.saveto( outfile , self['clobber'].boolean() )
+            self._fits.saveto(outfile, self['clobber'].boolean())
 
         #   Return
         return
 
-    def publish( self , name='' ) :
+    def publish(self, name='') :
         """
         Publish results
         """
 
         #   Write header
-        self._log_header1( gammalib.TERSE , 'Publishing Results' )
+        self._log_header1(gammalib.TERSE, 'Publishing Results')
 
         #   Checking fits
         if self._fits != None :
@@ -783,15 +797,15 @@ class csdmatter( ctools.csobservation ) :
                 user_name = name
 
         #   Log file
-        self._log_value( gammalib.NORMAL , 'DM anna name' , user_name )
+        self._log_value(gammalib.NORMAL, 'DM anna name', user_name)
 
         #   Publishin
-        self._fits.publish( 'DM Anna' , user_name )
+        self._fits.publish('DM Anna', user_name)
 
         #   Return
         return
 
-    def dmatter_fits( self ) :
+    def dmatter_fits(self) :
         """
         Return fits with results
         """
@@ -816,7 +830,7 @@ class csdmatter( ctools.csobservation ) :
 if __name__ == '__main__':
 
     # Create instance of application
-    app = csdmatter( sys.argv )
+    app = csdmatter(sys.argv)
 
     # Execute application
     app.execute()
