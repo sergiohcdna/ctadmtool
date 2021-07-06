@@ -295,8 +295,8 @@ class csdmatter( ctools.csobservation ) :
         #   parameter
         #   I hope this issue change when implementing the
         #   GModelSpectralDMMmodel class
-        minval  = 1.0e-20
-        maxval  = 1.0e+20
+        minval  = 1.0e-40
+        maxval  = 1.0e+40
 
         #   Model type
         modtype  = self['modtype'].string()
