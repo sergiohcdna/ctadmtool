@@ -117,7 +117,7 @@ if __name__ == '__main__':
     #   Saving the model
     fname = 'DMModelAnnihilation{0}.fits'.format(args.srcname)
     model = gammalib.GModelSpectralTable(ebins, pars, spectra)
-    model.table_par('Mass').method(0)
+    model.table_par('Mass').method(1)
     model.table_par('Channel').method(0)
     model['Mass'].fix()
     model['Channel'].fix()
