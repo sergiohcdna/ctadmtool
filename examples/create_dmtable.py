@@ -78,9 +78,9 @@ if __name__ == '__main__':
     print('****************************************')
     print('Creating Model Parameters\n')
     #   Then create the GModelPar objects for mass and channel
-    dmmass    = gammalib.GModelPar('Mass', 1.0e+3)
+    dmmass    = gammalib.GModelPar('Mass', 1.0e+3, 1.0)
     dmmass.unit('GeV')
-    dmchannel = gammalib.GModelPar('Channel', 8)
+    dmchannel = gammalib.GModelPar('Channel', 8, 1.0)
 
     #   Create the GSpectralTablePar objects
     k_ch   = [k for k in channels.keys()]
