@@ -299,8 +299,8 @@ class csdmatter( ctools.csobservation ) :
         #   parameter
         #   I hope this issue change when implementing the
         #   GModelSpectralDMMmodel class
-        minval  = 1.0e-20
-        maxval  = 1.0e+20
+        minval  = 0.0
+        maxval  = 1.0e+40
 
         #   Model type
         modtype  = self['modtype'].string()
@@ -339,7 +339,7 @@ class csdmatter( ctools.csobservation ) :
             dec    = self['dec'].real()
             dmspat = gammalib.GModelSpatialPointSource(ra, dec)
 
-        elif self[ 'modtype' ].string() == 'DiffuseSource' :
+        elif self['modtype'].string() == 'DiffuseSource' :
 
             mfile  = self['map_fits'].filename()
             dmspat = gammalib.GModelSpatialDiffuseMap(mfile)
@@ -354,26 +354,26 @@ class csdmatter( ctools.csobservation ) :
         #   Return
         return dmmodel
 
-    # def _gen_bkgmodel(self) :
-    #     """
-    #     Create bkg model. This model assume that the bkg type
-    #     is modeled by the IRF provided by the user.
+    def _gen_bkgmodel(self) :
+        """
+        Create bkg model. This model assume that the bkg type
+        is modeled by the IRF provided by the user.
 
-    #     Return
-    #     ------
-    #     Gmodel for bkg
-    #     """
+        Return
+        ------
+        Gmodel for bkg
+        """
 
-    #     #   spectral correction
-    #     genergy = gammalib.GEnergy(1, 'TeV')
-    #     spectral = gammalib.GModelSpectralPlaw(1, 0, genergy)
+        #   spectral correction
+        genergy = gammalib.GEnergy(1, 'TeV')
+        spectral = gammalib.GModelSpectralPlaw(1, 0, genergy)
         
-    #     # create background model
-    #     bkgmodel = gammalib.GCTAModelIrfBackground(spectral)
-    #     bkgmodel.name('Background')
-    #     bkgmodel.instruments('CTA')
+        # create background model
+        bkgmodel = gammalib.GCTAModelIrfBackground(spectral)
+        bkgmodel.name('Background')
+        bkgmodel.instruments('CTA')
         
-    #     return bkgmodel
+        return bkgmodel
 
     def _fit_mass_point(self, i) :
         """
@@ -397,7 +397,7 @@ class csdmatter( ctools.csobservation ) :
 
         #   Create file with flux according to process
         #   Well, at this moment, just annihilation :P
-        self._log_header1( gammalib.TERSE , 'Compute DM model' )
+        self._log_header1(gammalib.TERSE, 'Compute DM model')
 
         if self['process'].string() == 'ANNA' :
 
@@ -409,26 +409,27 @@ class csdmatter( ctools.csobservation ) :
         #     sys.exit()
 
         #   Then create GModel containers for source and bkg
-        # thisbkgmodel = self._gen_bkgmodel()
+        thisbkgmodel = self._gen_bkgmodel()
 
         #   GModels source and append dm and bkg models
         # mymodels = gammalib.GModels()
         # mymodels.append(thisdmmodel)
         # mymodels.append(thisbkgmodel)
+        obssim = self.obs().copy()
 
         #   Show mymodels in logfile, just to check that everything is Ok!
-        self._log_string(gammalib.EXPLICIT , str(self.obs().models()))
+        self._log_string(gammalib.EXPLICIT , str(obssim.models()))
 
         self._log_header1(gammalib.TERSE, 'Set or replace by Dark matter model')
 
-        for model in self.obs().models() :
+        for model in obssim.models() :
 
             if model.classname() != 'GCTAModelIrfBackground' :
 
-                self.obs().models().remove(model.name())
+                obssim.models().remove(model.name())
 
-        self.obs().models().append(thisdmmodel)
-        obssim = self.obs().copy()
+        obssim.models().append(thisdmmodel)
+        obssim.models().append(thisbkgmodel)
 
         #   Now, all the analysis is the same as in csspec script
 
