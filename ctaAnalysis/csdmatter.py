@@ -26,10 +26,6 @@ from cscripts import mputils
 
 import os
 import math
-import numpy as np
-
-from ctaAnalysis.dmspectrum.dmflux import dmflux_anna
-import ctaAnalysis.tools.createmodels as cmodels
 
 #====================================================================#
 #                                                                    #
@@ -299,7 +295,11 @@ class csdmatter( ctools.csobservation ) :
         #   parameter
         #   I hope this issue change when implementing the
         #   GModelSpectralDMMmodel class
+<<<<<<< HEAD
+        minval  = 1.0e-40
+=======
         minval  = 0.0
+>>>>>>> master
         maxval  = 1.0e+40
 
         #   Model type

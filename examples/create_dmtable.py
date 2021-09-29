@@ -20,6 +20,10 @@ if __name__ == '__main__':
         20:'Gamma', 21:'h', 22:'Nue', 23:'NuMu', 24:'NuTau',
         25:'Ve', 26:'VMu', 27:'VTau'}
 
+    # This is the dictionary of channels available in PPPC4DMID tables
+    channelsNoEw = {0:'e', 1:'Mu', 2:'Tau', 3:'q',
+        4:'c', 5:'b', 6:'t', 7:'W', 8:'Z', 9:'g'}
+
     msg = 'Create a fits using GModelSpectralTable'
     options = argparse.ArgumentParser(description=msg)
 
@@ -49,6 +53,8 @@ if __name__ == '__main__':
         type=float, default=1.0e+5, metavar='1.0e+5')
     model.add_argument('--mpoints', help='Number of mass points',
         type=int, required=False, default=50, metavar='50')
+    model.add_argument('--hasew', help='Include EW corrections',
+        action='store_true')
 
     esetup  = options.add_argument_group('Energy setup',
         'Min, Max and number of bins')
@@ -78,12 +84,16 @@ if __name__ == '__main__':
     print('****************************************')
     print('Creating Model Parameters\n')
     #   Then create the GModelPar objects for mass and channel
-    dmmass    = gammalib.GModelPar('Mass', 1.0e+3)
+    dmmass    = gammalib.GModelPar('Mass', 1.0e+3, 1.0)
     dmmass.unit('GeV')
-    dmchannel = gammalib.GModelPar('Channel', 8)
+    dmchannel = gammalib.GModelPar('Channel', 8, 1.0)
 
     #   Create the GSpectralTablePar objects
-    k_ch   = [k for k in channels.keys()]
+    if args.hasew :
+        k_ch = [k for k in channels.keys()]
+    else :
+        k_ch = [k for k in channelsNoEw.keys()]
+
     w      = (np.log10(args.mmax) - np.log10(args.mmin)) / args.mpoints
     masses = [np.ceil(10**(np.log10(args.mmin)+x*w)) for x in range(args.mpoints+1)]
 
@@ -102,25 +112,46 @@ if __name__ == '__main__':
 
     #   filling the spectrum
     for index, mass in tqdm(enumerate(masses)):
-        for cindex, thisch in channels.items():
-            #    Create an instance of dmspectrum
-            dminterp = dmspectrum(mass, energies, thisch,
-                args.z, eblmod=args.eblmodel)
-            spec     = dminterp.spectra()
-            for eindex in range(args.nebins):
-                spectra[index, cindex, eindex] = spec[eindex]
-                
-            del dminterp
+        if args.hasew :
+            for cindex, thisch in channels.items():
+                #    Create an instance of dmspectrum
+                dminterp = dmspectrum(mass, energies, thisch,
+                    args.z, eblmod=args.eblmodel, has_EW=args.hasew)
+                spec     = dminterp.spectra()
+                for eindex in range(args.nebins):
+                    spectra[index, cindex, eindex] = spec[eindex]
+                    
+                del dminterp
+        else :
+            for cindex, thisch in channelsNoEw.items():
+                #    Create an instance of dmspectrum
+                dminterp = dmspectrum(mass, energies, thisch,
+                    args.z, eblmod=args.eblmodel, has_EW=args.hasew)
+                spec     = dminterp.spectra()
+                for eindex in range(args.nebins):
+                    spectra[index, cindex, eindex] = spec[eindex]
+                    
+                del dminterp
+
 
     print('****************************************')
     print('Saving the file\n')
     #   Saving the model
-    fname = 'DMModelAnnihilation{0}.fits'.format(args.srcname)
+
+    fluxnorm  = args.jfactor * args.sigmav / (8 * gammalib.pi * args.mmin * args.mmin)
+    fluxnorm *= 1.0e-3
+    minval    = 0.0
+    maxval    = 1.0e+60
+
+    fname = 'DMModelAnnihilation{0}EW{1}.fits'.format(args.srcname, int(args.hasew))
     model = gammalib.GModelSpectralTable(ebins, pars, spectra)
-    model.table_par('Mass').method(0)
+    model.table_par('Mass').method(1)
     model.table_par('Channel').method(0)
     model['Mass'].fix()
     model['Channel'].fix()
+    model['Normalization'].value(fluxnorm)
+    model['Normalization'].scale(1.0)
+    model['Normalization'].range(minval, maxval)
     model.save(fname, True)
 
     print('****************************************')
