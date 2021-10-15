@@ -163,6 +163,11 @@ class dmspectrum() :
         # Set energy
         self._emin = e_min
 
+        #   Update energy array
+        energies = self._earray(e_min, self._emax, self._epoints)
+
+        self._energy = energies
+
         #   Return
         return
 
@@ -192,6 +197,14 @@ class dmspectrum() :
         # Set energy
         self._emax = e_max
 
+        #   Update energy array
+        energies = self._earray(self._emin, e_max, self._epoints)
+
+        self._energy = energies
+
+        #   Return
+        return
+
     @property
     def energy(self) :
         """
@@ -217,12 +230,10 @@ class dmspectrum() :
 
         #   Check if emin and emax are valid
         if emin < 5.e-9 :
-
             raise ValueError(('Energy {0} '.format(emin) +
                 'is lower than the allowed value 5.e-9'))
 
         if emax > 1.e+5 :
-
             raise ValueError(('Energy {0} '.format(emax) +
                 'is greater than the allowed value 1.e+5'))
 
