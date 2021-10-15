@@ -447,6 +447,33 @@ class dmtable() :
         #   Return
         return
 
+    @property
+    def elist(self) :
+        """
+        Return list of energy values used to compute the spectrum
+        """
+        #   Return
+        return self._dminterp.energy
+
+    @elist.setter
+    def elist(self, evals) :
+        """
+        Update energy values used to compute the spectrum
+        evals[0]  --> emin
+        evals[1]  --> emax
+        evals[2]  --> epoints
+        """
+
+        #   Check that emin and emax are ok
+        if evals[0] < 5.e-9 or evals[1] > 1.e+5 :
+            raise ValueError('\nParameters outside of range')
+
+        #   Update properties
+        self._dminterp.energy = evals
+
+        #   Return
+        return
+
     @staticmethod
     def _norm_anna(sigmav, mass, delta, jfactor) :
         """
