@@ -86,6 +86,7 @@ class dmtable() :
             self._dminterp = dminterp
 
         self._masses  = self._marray(m_min, m_max, mpoints)
+
         if dminterp.hasEW :
             self._allowed_channels = ALLOWED_CHANNELS
         else :
@@ -220,19 +221,26 @@ class dmtable() :
         return self._mmin
 
     @mmin.setter
-    def mmin(self, mmin) :
+    def mmin(self, m_min) :
         """
         Set the value of minimum mass (GeV) used to compute
         the dm flux
         """
         #   Just check that the minimum mass is greater than
         #   10.0 GeV.
-        if mmin < 10. :
-            raise ValueError(('\nMinimum mass {0} GeV '.format(mmin) +
+        if m_min < 10. :
+            raise ValueError(('\nMinimum mass {0} GeV '.format(m_min) +
                 'is below the allowed value (10GeV)'))
 
         #   Set minimum energy
-        self._mmin = mmin
+        self._mmin = m_min
+
+        #   Update masses
+        mvalues      = self._marray(self._mmin, self._mmax, self._mpoints)
+        self._masses = mvalues
+
+        #   Return
+        return
 
     @property
     def mmax(self) :
@@ -244,17 +252,24 @@ class dmtable() :
         return self._mmax
 
     @mmax.setter
-    def mmax(self, mmax) :
+    def mmax(self, m_max) :
         """
         Set the value of minimum mass (GeV) used to compute
         the dm flux
         """
-        if mmax > 1.e+5 :
-            raise ValueError(('\nMaximum mass {0} GeV '.format(mmax) +
+        if m_max > 1.e+5 :
+            raise ValueError(('\nMaximum mass {0} GeV '.format(m_max) +
                 'is above the allowed value (1.e+5GeV)'))
 
         #   Set minimum energy
-        self._mmax = mmax
+        self._mmax = m_max
+
+        #   Update masses
+        mvalues      = self._marray(self._mmin, self._mmax, self._mpoints)
+        self._masses = mvalues
+
+        #   Return
+        return
 
     @property
     def masses(self) :
