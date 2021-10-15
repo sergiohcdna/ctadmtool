@@ -1,17 +1,32 @@
+import gammalib
+import math
 import numpy as np
 from ctaAnalysis.dmspectrum.dmspectra import dmspectrum
 from ctaAnalysis.tools.misc import ValidValue , ValidString
+from tqdm import tqdm
 
 import warnings
 
-ALLOWED_FERMIONS = ( 'Majorana' , 'Dirac' )
+ALLOWED_FERMIONS = ('Majorana', 'Dirac')
 
-@ValidString( '_delta' , empty_allowed=False , options=ALLOWED_FERMIONS )
-@ValidValue( '_emin' , min_val=5.e-9 )
-@ValidValue( '_emax' , max_val=1.e+5 )
-@ValidValue( '_sigmav' , min_val=1.e-35 )
-# @ValidValue( "_jfactor" , min_val=1.e+5 )
-class dmflux_anna( dmspectrum ) :
+ALLOWED_CHANNELS = ('eL', 'eR', 'e',
+    'MuL', 'MuR', 'Mu', 'TauL', 'TauR', 'Tau',
+    'q', 'c', 'b', 't',
+    'WL', 'WT', 'W', 'ZL', 'ZT', 'Z', 'g', 'Gamma', 'h',
+    'Nue', 'NuMu', 'NuTau',
+    'Ve', 'VMu', 'VTau')
+
+ALLOWED_CHANNELSNOEW = ('e','Mu','Tau','q','c','b','t','W','Z','g')
+
+@ValidValue("_dfactor", min_val=1.e-40)
+@ValidValue('_lifetime', min_val=1.e-40)
+@ValidValue("_jfactor", min_val=1.e-40)
+@ValidValue('_sigmav', min_val=1.e-40)
+@ValidString('_delta', empty_allowed=False, options=ALLOWED_FERMIONS)
+@ValidValue('_mmin', min_val=10.0)
+@ValidValue('_mmax', max_val=1.e+5)
+@ValidString('_srcname', empty_allowed=False)
+class dmtable() :
     """
     Class to compute the flux generated
     from annihilation of dark matter
@@ -20,78 +35,77 @@ class dmflux_anna( dmspectrum ) :
     """
 
     #   Init
-    def __init__( self , sigmav , jfactor , dm_mass , emin , emax , channel ,\
-        z , delta='Majorana' , npoints=100 , eblmod='franceschini2017' , has_EW=True ) :
+    def __init__(self, srcname, mmin, mmax, mpoints, dminterp, delta='Majorana',
+        sigmav=3.6e-26, jfactor=1.e+19, lifetime=1.e+30, dfactor=1.e+19) :
         """
         Initialize the dmflux_anna class
 
         Parameters:
         ----------
-            sigmav  : Annihilation cross-section (in cm**3/s)
-            jfactor : Astrophysical factor in (GeV**2/cm**5)
-            dm_mass : Mass of dark matter candidate
-            emin    : Minimum energy to compute the flux (in GeV)
-            emax    : Maximum energy to compute the flux (in GeV)
-            channel : Annihilation channel
-            z       : Redshift to which photons are emitted
-            delta   : Parameter to describe if dark matter candidate
-                      is a Majorana (delta=2) fermion or a
-                      Dirac (delta=4) fermion
-            npoints : Number of points to compute the flux
-            eblmod  : EBL model used to compute attenuation
-            has_EW  : Boolean to indicate if EW corrections
-                      are taken into account or not
+            srcname  : Name of the target or family targets
+            mmin     : Min Mass of dark matter candidate
+            mmax     : Max Mass of dark matter candidate
+            mpoints  : Number of mass points to create the Fits table
+            dminterp : dmspectrum class instance (I avoid to write a lot
+                       of code I already have)
+            delta    : Parameter to describe if dark matter candidate
+                       is a Majorana (delta=2) fermion or a
+                       Dirac (delta=4) fermion
+            sigmav   : Annihilation cross-section (in cm**3/s)
+            jfactor  : Astrophysical factor in (GeV**2/cm**5)
+            lifetime : Decay lifetime (in s)
+            dfactor  : Astrophysical factor in (GeV/cm**2)
         """
-
-        #   Additionally to check that emin and emax have valid values
-        #   I check that emin < emax
-        if emin > emax :
-
-            msg = ( '\nI found that Minimum energy {0} '.format( emin ) +
-                'is greater than Maximum energy {0}.\n'.format( emax ) +
-                'Changing the order...' )
-
-            warnings.warn( msg , RuntimeWarning )
-            e_min = emax
-            e_max = emin
-
+        #   And, I check that mmin < mmax, if not, then reverse the order
+        if mmin > mmax :
+            msg = ('\nI found that Minimum mass {0} '.format(mmin) +
+                'is greater than Maximum mass {0}.\n'.format(mmax) +
+                'Changing the order...')
+            warnings.warn(msg, RuntimeWarning)
+            m_min = mmax
+            m_max = mmin
         else :
-
-            e_min = emin
-            e_max = emax
-
-        #   Array to store energy values to compute the dmflux
-        e_array = np.logspace( np.log10( e_min ) , np.log10( e_max ) , npoints )
-
-        #   By default, I am using annihilation (anna)
-        process = 'anna'
-
-        #   Initialize dm_spectrum super class
-        super().__init__( dm_mass , e_array , channel , z , \
-            process=process , eblmod=eblmod , has_EW=has_EW )
+            m_min = mmin
+            m_max = mmax
 
         #   Initialize parameters of dmflux_ana class
-        self._sigmav  = sigmav
-        self._jfactor = jfactor
-        self._emin    = e_min
-        self._emax    = e_max
-        self._delta   = delta
+        self._srcname  = srcname
+        self._sigmav   = sigmav
+        self._jfactor  = jfactor
+        self._lifetime = lifetime
+        self._dfactor  = dfactor
+        self._delta    = delta
+        self._mmin     = m_min
+        self._mmax     = m_max
+        self._mpoints  = mpoints
 
+        if not isinstance(dminterp, dmspectrum) :
+            msg = 'dminterp must be an instance of dmspectrum class'
+            raise TypeError(msg)
+        else :
+            self._dminterp = dminterp
+
+        self._masses  = self._marray(m_min, m_max, mpoints)
+        if dminterp.hasEW :
+            self._allowed_channels = ALLOWED_CHANNELS
+        else :
+            self._allowed_channels = ALLOWED_CHANNELSNOEW
+
+        self._model = None
         #   Return
         return
 
     @property
-    def sigmav( self ) :
+    def sigmav(self) :
         """
         Return value of the annihilation cross-section
         used to compute the flux
         """
-
         #   Return
         return self._sigmav
 
     @sigmav.setter
-    def sigmav( self , sigmav ) :
+    def sigmav(self, sigmav) :
         """
         Set the value of Annihilation cross-section (in cm**3/s)
         used to compute the flux
@@ -100,13 +114,11 @@ class dmflux_anna( dmspectrum ) :
         ----------
             sigmav : Annihilation cross-section (cm**3/s)
         """
-
         #   Check that sigmav is greater than 1.e-35
-        if sigmav < 1.e-35 :
-
-            raise ValueError( ( '\nValue of annihilation cross-section ' +
-                ' must be greater than 1.e-35.\n' +
-                'This is just to avoid possible round errors' ) )
+        if sigmav < 1.e-40 :
+            raise ValueError(('\nValue of annihilation cross-section ' +
+                ' must be greater than 1.e-40.\n' +
+                'This is just to avoid possible round errors'))
 
         #   Set sigmav
         self._sigmav = sigmav
@@ -115,17 +127,47 @@ class dmflux_anna( dmspectrum ) :
         return
 
     @property
-    def jfactor( self ) :
+    def lifetime(self) :
+        """
+        Return value of the decay lifetime
+        used to compute the flux
+        """
+        #   Return
+        return self._lifetime
+
+    @lifetime.setter
+    def lifetime(self, tau_chi) :
+        """
+        Set the value of decay lifetime (in s)
+        used to compute the flux
+
+        Parameters
+        ----------
+            tau_chi : Annihilation cross-section (cm**3/s)
+        """
+        #   Check that sigmav is greater than 1.e-35
+        if tau_chi < 1.e-40 :
+            raise ValueError(('\nValue of decay lifetime ' +
+                ' must be greater than 1.e-40.\n' +
+                'This is just to avoid possible round errors'))
+
+        #   Set sigmav
+        self._lifetime = tau_chi
+
+        #   Return
+        return
+
+    @property
+    def jfactor(self) :
         """
         Return the value of the Astrophysical factor
         used to compute the flux
         """
-
         #   Return
         return self._jfactor
 
     @jfactor.setter
-    def jfactor( self , jfactor ) :
+    def jfactor(self, jfactor) :
         """
         Set the value of the Astrophysical factor (GeV**2/cm**5)
         to compute the dm flux
@@ -134,6 +176,8 @@ class dmflux_anna( dmspectrum ) :
         ----------
             jfactor : Astrophysical factor J (GeV**2/cm**5)
         """
+        if jfactor < 1.e-40 :
+            raise ValueError('\nValue of jfactor must be greater than 1.e-40.')
 
         #   Set the jfactor
         self._jfactor = jfactor
@@ -142,79 +186,146 @@ class dmflux_anna( dmspectrum ) :
         return
 
     @property
-    def emin( self ) :
+    def dfactor(self) :
         """
-        Return Minimum value of energy (GeV) used to compute
-        the dm flux
+        Return the value of the Astrophysical factor
+        used to compute the flux
         """
+        #   Return
+        return self._dfactor
+
+    @dfactor.setter
+    def dfactor(self, dfactor) :
+        """
+        Set the value of the Astrophysical factor (GeV/cm**2)
+        to compute the dm flux
+
+        Parameters
+        ----------
+            dfactor : Astrophysical factor D (GeV/cm**2)
+        """
+        #   Set the jfactor
+        self._dfactor = dfactor
 
         #   Return
-        return self._emin
-
-    @emin.setter
-    def emin( self , emin ) :
-        """
-        Set the value of minimum energy (GeV) used to compute
-        the dm flux
-        """
-
-        #   Just check that the minimum energy is greater than
-        #   5.e-9.
-        #   In reality, at this point, is factible to check
-        #   that emin is greater than mass * 1.e-9
-        #   By the way, the dminterpolator put 1.e-40
-        #   in values outside the range of interpolation
-        if emin < 5.e-9 :
-
-            raise ValueError( ( '\nMinimum energy {0} GeV '.format( emin ) +
-                'is below the allowed value (5.e-9GeV)') )
-
-        #   Set minimum energy
-        self._emin = emin
+        return
 
     @property
-    def emax( self ) :
+    def mmin(self) :
         """
-        Return Maximum value of energy (GeV) used to compute
+        Return Minimum value mass (GeV) used to compute
         the dm flux
         """
+        #   Return
+        return self._mmin
+
+    @mmin.setter
+    def mmin(self, mmin) :
+        """
+        Set the value of minimum mass (GeV) used to compute
+        the dm flux
+        """
+        #   Just check that the minimum mass is greater than
+        #   10.0 GeV.
+        if mmin < 10. :
+            raise ValueError(('\nMinimum mass {0} GeV '.format(mmin) +
+                'is below the allowed value (10GeV)'))
+
+        #   Set minimum energy
+        self._mmin = mmin
+
+    @property
+    def mmax(self) :
+        """
+        Return Maximum value of mass (GeV) used to compute
+        the dm flux
+        """
+        #   Return
+        return self._mmax
+
+    @mmax.setter
+    def mmax(self, mmax) :
+        """
+        Set the value of minimum mass (GeV) used to compute
+        the dm flux
+        """
+        if mmax > 1.e+5 :
+            raise ValueError(('\nMaximum mass {0} GeV '.format(mmax) +
+                'is above the allowed value (1.e+5GeV)'))
+
+        #   Set minimum energy
+        self._mmax = mmax
+
+    @property
+    def masses(self) :
+        """
+        Return the values of the energy array used to compute the spectrum
+        """
+        #   Return
+        return self._masses
+
+    @masses.setter
+    def masses(self, m_vals) :
+        """
+        Set the masses used to compute the spectrum
+        Parameters
+        ----------
+            - evals   : tuple with:
+                - mmin    : Minimum mass (GeV)
+                - mmax    : Maximum mass (GeV)
+                - mpoints : Number of points to create the array
+        """
+
+        mmin, mmax, mpoints = m_vals
+
+        #   Check if emin and emax are valid
+        if mmin < 10.0 :
+
+            raise ValueError(('Mass {0} '.format(mmin) +
+                'is lower than the allowed value 10.0'))
+
+        if mmax > 1.e+5 :
+
+            raise ValueError(('Mass {0} '.format(mmax) +
+                'is greater than the allowed value 1.e+5'))
+
+        #   Create energy array
+        mvalues = self._marray(mmin, mmax, mpoints)
+
+        self._masses = mvalues
 
         #   Return
-        return self._emax
+        return
 
-    @emax.setter
-    def emax( self , emax ) :
+    @staticmethod
+    def _marray(mmin, mmax, mpoints) :
         """
-        Set the value of minimum energy (GeV) used to compute
-        the dm flux
+        Create list of masses to generate the fits table.
+        The calculation is based in the number of points
+        The masses are computed assuming logarithmic distance
         """
+        logmmin = np.log10(mmin)
+        logmmax = np.log10(mmax)
+        width   = (logmmax - logmmin)/(mpoints-1)
+        masses  = []
 
-        #   Just check that the minimum energy is greater than
-        #   1.e+5.
-        #   In reality, at this point, is factible to check
-        #   that emax is lower than mass
-        #   By the way, the dminterpolator put 1.e-40
-        #   in values outside the range of interpolation
-        if emax > 1.e+5 :
+        for index in range(mpoints) :
+            masses.append(math.pow(10., logmmin+index*width))
 
-            raise ValueError( ( '\nMaximum energy {0} GeV '.format( emax ) +
-                'is above the allowed value (1.e+5GeV)') )
-
-        #   Set minimum energy
-        self._emax = emax
+        #   Return
+        return masses
 
     @property
-    def delta( self ) :
+    def delta(self) :
         """
         Return what kind of dark matter particle is
         used to compute the dm flux
         """
-
         #   Return
         return self._delta
 
     @delta.setter
-    def delta( self , delta ) :
+    def delta(self, delta) :
         """
         Set the value of delta to describe what kind of
         dark matter particle is used to compute the
@@ -227,55 +338,246 @@ class dmflux_anna( dmspectrum ) :
 
         #   Just to check that delta is valid
         if delta not in ALLOWED_FERMIONS :
-
-            raise ValueError( ( '\nKind of Dark matter particle not ' +
-                'supported.\nOptions are:{0}'.format( ALLOWED_FERMIONS ) ) )
+            raise ValueError(('\nKind of Dark matter particle not ' +
+                'supported.\nOptions are:{0}'.format(ALLOWED_FERMIONS)))
 
         #   Set minimum energy
         self._delta = delta
 
-    @staticmethod
-    def _ppfactor( sigmav , mass , delta ) :
+        #   Return
+        return
+
+    @property
+    def hasEW(self) :
         """
-        Compute the Particle physics factor for the dm flux
+        Return whether EW corrections are included or not
+        """
+        #   Return
+        return self._dminterp.hasEW
+
+    @hasEW.setter
+    def hasEW(self, has_EW) :
+        """
+        Include EW corrections in computation of DM spectra
+        """
+        self._dminterp.hasEW = has_EW
+
+        #   Update the tuple of allowed channels
+        if has_EW :
+            self._allowed_channels = ALLOWED_CHANNELS
+        else :
+            self._allowed_channels = ALLOWED_CHANNELSNOEW
+
+        #   Return
+        return
+
+    @property
+    def allowed_channels(self) :
+        """
+        Return tuple of allowed channels according to
+        whether or not to include EW corrections in spectra
+        """
+        #   Return
+        return self._allowed_channels
+
+    @property
+    def tablemodel(self) :
+        """
+        Return GModelSpectralTable
+        """
+        #   Return
+        return self._model
+
+    @property
+    def process(self) :
+        """
+        Return dm process
+        """
+        #   Return
+        return self._dminterp.process
+
+    @process.setter
+    def process(self, process_vals) :
+        """
+        Set annihilation (anna) or decay process in dminterp
+        Also update the properties jfactor and sigmav for anna
+        or dfactor and lifetime for decay
+        """
+        #   Extract values
+        dmprocess = process_vals[0]
+        astfactor = process_vals[1]
+        paroi     = process_vals[2]
+
+        #   Check that process is valid
+        VALID_PROCESSES = ['anna', 'decay']
+        if dmprocess not in VALID_PROCESSES :
+            msg = 'Valid options are: {0}'.format(VALID_PROCESSES)
+            raise ValueError(msg)
+
+        if astfactor < 1.e-40 or paroi < 1.e-40 :
+            raise ValueError('\nParameters must be greater than 1.e-40.')
+
+        #   Update properties
+        if dmprocess == 'anna' :
+            self._jfactor = astfactor
+            self._sigmav  = paroi
+        elif dmprocess == 'decay' :
+            self._dfactor  = astfactor
+            self._lifetime = paroi
+
+        self._dminterp.process = dmprocess
+
+        #   Update
+
+        #   Return
+        return
+
+    @staticmethod
+    def _norm_anna(sigmav, mass, delta, jfactor) :
+        """
+        Compute normalization of the dm flux compatible with gammalib
 
         Parameters
         ----------
-            sigmav : Value of annihilation cross-section (cm**3/s)
-            mass   : Mass of dark matter particles (GeV)
-            delta  : String to indicate if dark matter is a
-                     Majorana or Dirac fermion
+            sigmav  : Value of annihilation cross-section (cm**3/s)
+            mass    : Mass of dark matter particles (GeV)
+            delta   : String to indicate if dark matter is a
+                      Majorana or Dirac fermion
+            jfactor : Astrophysica factor for annihilation
 
         Return
         ------
-            ppfactor : (cm**3/GeV**2/s)
+            norm : (1/[MeV* cm^2 * s])
         """
-
+        d = 0.
         #   Check delta
         if delta == 'Majorana' :
-
-            d = 2
-
+            d = 2.
         elif delta == 'Dirac' :
-            d = 4
+            d = 4.
 
         #   Compute ppfactor
-        ppfactor = sigmav / d / 4 / np.pi / np.power( mass , 2 )
+        ppfactor = sigmav / (d*4.*gammalib.pi*mass*mass)
+        norm     = ppfactor * jfactor
 
-        return ppfactor
+        return norm * 1.0e-3
 
-    def flux( self ) :
+    @staticmethod
+    def _norm_decay(lifetime, mass, dfactor) :
         """
-        Compute the DM flux
+        Compute normalization of the dm flux compatible with gammalib
+
+        Parameters
+        ----------
+            lifetime : Value of decay lifetime (s)
+            mass     : Mass of dark matter particles (GeV)
+            dfactor  : Astrophysical factor for ecay
+
+        Return
+        ------
+            norm : (1/[MeV* cm^2 * s])
         """
+        #   Compute ppfactor
+        ppfactor = 1 / (4.*gammalib.pi*mass*lifetime)
+        norm     = ppfactor * dfactor
 
-        #   Get dnde
-        dnde     = self.spectra()
+        return norm * 1.0e-3
 
-        #   Get ppfactor
-        ppfactor = self._ppfactor( self._sigmav , self._mass , self._delta )
+    def create_modeltable(self) :
+        """
+        Create fits table with spectrum and channels
+        """
+        #   Get list of channel indices
+        #   First, I get the number of channels and energy points
+        #   I don't want to access a private member from dmspectrum
+        #   class, but I can get the number of points from the
+        #   energy array
+        ch_indices = [i for i in range(len(self._allowed_channels))]
+        n_chs   = len(ch_indices)
+        n_eng   = len(self._dminterp.energy)
 
-        #   Get the flux
-        dphide   = ppfactor * dnde * self._jfactor
+        # Array with definitions of energy bins
+        gemin = gammalib.GEnergy(self._dminterp.emin, 'GeV')
+        gemax = gammalib.GEnergy(self._dminterp.emax, 'GeV')
+        ebins = gammalib.GEbounds(n_eng, gemin, gemax)
 
-        return dphide
+        #   Then create the GModelPar objects for mass and channel
+        #   I know, default channel is hard coded, but we don't need
+        #   to select any particular channel at this moment.
+        #   Select Tau channel is just for initialization
+        dmmass    = gammalib.GModelPar('Mass', self._mmin, 1.0)
+        dmmass.unit('GeV')
+        index     = self._allowed_channels.index('Tau')
+        dmchannel = gammalib.GModelPar('Channel', index, 1.0)
+
+        #   Create the GSpectralTablePar objects
+        par_mass    = gammalib.GModelSpectralTablePar(dmmass, self._masses)
+        par_channel = gammalib.GModelSpectralTablePar(dmchannel, ch_indices)
+
+        #   Create the container GSpectralTablePars and append the pars
+        pars = gammalib.GModelSpectralTablePars()
+        pars.append(par_mass)
+        pars.append(par_channel)
+
+        #   GNdarray to save the spectra
+        spectra = gammalib.GNdarray(self._mpoints,n_chs,n_eng)
+
+        #   filling the spectrum
+        for index, mass in tqdm(enumerate(self._masses)):
+            #   Change the value of the mass
+            self._dminterp.mass = mass
+            for cindex, thisch in enumerate(self._allowed_channels):
+                #    Modified the instance of dmspectrum
+                #   to match values for every channel
+                #   I don't need to change the array for energy
+                #   And also, I don't need to check whether I want
+                #   to include EW corrections or not
+                self._dminterp.channel = thisch
+                dmspec                 = self._dminterp.spectra()
+                for eindex in range(n_eng):
+                    spectra[index, cindex, eindex] = dmspec[eindex]
+
+        #   Get ppfactor and normalization
+        #   This normalization computed here
+        #   is not neccessary. You can change the normalization
+        #   of the GModelSpectralTable later during simulation
+        #   or analysis steps via GModelSpectralTable methods
+        norm = 0.0
+        minval    = 0.0
+        maxval    = 1.0e+60
+
+        if self._dminterp.process == 'anna' :
+            norm = self._norm_anna(self._sigmav, self._mmin,
+                self._delta, self._jfactor)
+        elif self._dminterp.process == 'decay' :
+            norm = self._norm_decay(self._lifetime, self._mmin, self._dfactor)
+
+        #   Tuning the ModelSpectralTable
+        #   I set the interpolation method of masses to logarithmic
+        #   Mass and channel are fixed.
+        #   Particularly, it's mandatory that channel parameter is fixed
+        model = gammalib.GModelSpectralTable(ebins, pars, spectra)
+        model.table_par('Mass').method(1)
+        model.table_par('Channel').method(0)
+        model['Mass'].fix()
+        model['Channel'].fix()
+        model['Normalization'].value(norm)
+        model['Normalization'].scale(1.0)
+        model['Normalization'].range(minval, maxval)
+
+        self._model = model
+
+        #   Return
+        return
+
+    def save(self) :
+        """
+        Save the DM table
+        """
+        process = self._dminterp.process
+        ew      = int(self._dminterp.hasEW)
+        name = 'DMModel{0}{1}EW{2}.fits'.format(process, self._srcname, ew)
+
+        self._model.save(name, True)
+
+        return
