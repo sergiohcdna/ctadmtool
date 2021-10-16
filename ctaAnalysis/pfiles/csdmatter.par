@@ -41,8 +41,6 @@ logsigmav,     r, a, -28.0,-35.0,-10.0, "Logarithm of annihilation cross-section
 loglifetime,   r, a, 30.0,20.0,40.0, "Logarithm of annihilation cross-section (in cm**3/s)"
 logastfactor,  r, a, 19.5,,, "Logarithm of astrophysica j-factor (in GeV**2/cm**5)"
 logdfactor,  r, a, 19.5,,, "Logarithm of astrophysical d-factor (in GeV/cm**2)"
-redshift,      r, a, 0.018,0,2, "Redshift at which photons are emmited"
-eblmodel,      s, a, dominguez,franceschini|franceschini2017|kneiske|finke|dominguez|inuoe|gilmore,, "EBL model to take into accout attenuation due to redshift. Calculations are performed using ebl-table project (https://github.com/me-manu/ebltable)"
 emin,          r, a, 30,,, "Start value for dark matter flux in GeV"
 emax,          r, a, 1.e+5,,, "Stop value for dark matter flux in GeV"
 modtype,       s, a, PointSource,PointSource|DiffuseSource,, "Select the Model type specifier to generate GModels container"
