@@ -1,42 +1,37 @@
-# ctaAnalysis
-This project is dedicated to perform analysis with ctools and gammalib to compute upper limits of annihilation cross-section and decay lifetime of dark matter particles using CTA observations.
+# ctaAnalysis Package
 
-The code presented here is functional at least for versions of ctools and gammalib greater than 1.6.3.
+This project is dedicated to perform analysis with `ctools` and `gammalib` to compute upper limits of annihilation cross-section and decay lifetime of dark matter particles using CTA observations.
 
-To install ctools and gammalib you can use conda. Also, you can build from source. Please check [gammalib](http://cta.irap.omp.eu/gammalib/admin/index.html) and [ctools](http://cta.irap.omp.eu/ctools/admin/index.html) pages.
+The code presented here is functional at least for versions of `ctools` and `gammalib` greater than 1.6.3.
 
-The core of the analysis tool is **csdmatter**. This class is based in **csscripts** installed with ctools. One of the key features is the management of dark-matter spectrum via the *gammalib* **GModelSpectralTable** class. This has the advantage to only use one fits file to describe the spectrum for candidates with masses in a determined range, dedicated annihilation channels (following the convention from the PPPC4DMID project) and particular energy ranges. You can check the script *create_dmtable* under the **examples/** folder to check how to create a spectrum fits file. The *create_dmtable* also includes the estimation of EBL atenuattion and you can indicate the annihilation cross-section (*logsigmav* parameter) and astropysical jfactor (*logastfactor* parameter) to compute the overall normalization of the spectrum. You can change the value of cross-section and jfactor according to the requirements of the source (as mentioned before, the cross-section and jfactor only are used to compute the normalization of the spectra). Then, you can use only one spectrum file for a family of targets at the same redshift. The *create_dmtable* script uses two internal classes to interpolate the spectrum at energy and masses indicated by the user via command-line.
+To install `ctools` and `gammalib` you can use conda. Also, you can build from source. Please check [gammalib](http://cta.irap.omp.eu/gammalib/admin/index.html) and [ctools](http://cta.irap.omp.eu/ctools/admin/index.html) pages.
 
-The parameters in the spectrum fits file are the following:
+The core of the analysis tool is `csdmatter`. This class is based in `csscripts` installed with ctools. One of the key features is the management of dark-matter spectrum via the `gammalib` `GModelSpectralTable` class. This has the advantage to only use one fits file to describe the spectrum for candidates with masses in a determined range, dedicated annihilation channels (following the convention from the [PPPC4DMID](http://www.marcocirelli.net/PPPC4DMID.html) project) and particular energy ranges. You can check the jupyter notebook `tablemodel` under the **notebooks/** folder to check how to create a spectrum fits file. The `tablemodel` notebook uses `dmtable` class to interpolate the spectrum for different masses, energy and channels using `dmspectrum` class. The spectrum is save into a fits table that is esaily ingested by `ctools` and `gammalib`.
+
+The fits table has three parameters to describe the spectrum:
 
 1. Mass. The mass of the dark matter candidate (in GeV). [**Default: fixed**]. In the case of a hypothetical dark-matter signal, you should free this parameter.
 2. Channel. Annihilation channel. I took the same number convetion as in the PPPC4DMID project. [**Default: fixed**]. This variable should not set free during the analysis.
 3. Normalization. Overall normalization of the dark-matter spectra. [**Default: free**]
 
-To use the *create_dmtable* script you can use:
-
-```bash
-$ python create_dmtable.py --srcname AquariusII --jfactor 1.8621e+18 --sigmav 3.0e-26 --z 0 --mpoints 100 --emin 30.0 --nebins 450
-```
+Aditionally, you can select whether or not to include electroweak (EW) corrections in the spectrum. By default, this parameter is set to `True`.
 
 ## Current known issues:
 
 1. **csdmatter** fails to correctly process *GCTAOnOffObservations*
 
-If you found any issue during the test of use of this project please open an Issue.
+If you found any issue during test or use of this project, please open an Issue.
 
 ## Description
 
 The contents of the project are:
 
-1.  **old**
 2.  **ctaAnalysis**
   * *data*
   * *dmspectrum*
   * *pfiles*
   * *tools*
   * **csdmatter.py**
-3.  **examples**
 4.  **LICENSE**
 5.  **MANIFEST.in**
 6.  **README.md**
@@ -49,34 +44,35 @@ You can set the ```GAMMALIB``` and ```CTOOLS``` environment variables as usual. 
 
 ##  The ctaAnalysis python package
 
-The ctaAnalysis is a python package to make life a little easier. There are two subpackages inside the package:
+`ctaAnalysis` is a python package to compute exclusion limits for model-independent dark matter searches with CTA. The package is an effort to have a common set of tools and use as basic example for analysis. There are two subpackages:
 
 1. **dmspectrum**
 2. **tools**
 
-And the relevant classes are:
+The relevan classes (about physics) are:
 
 1.  *dmspectra*
-  - To compute the number of photons produced during annihilation of dark matter particles using PPPC4DMID tables. Here, it is also included EBL attenuation using ebl-table project
-2.  *dmflux*
-  - To compute gamma-ray flux using ref. cross-section times total astrophysical factor times spectra of photons produced during annihilation
-3.  *createmodels*
-  - To generate gammalib.GModels during execution time without generating XML files before. (**Deprecated**. As noted above, the management of dark-matter spectrum is via the *gammalib* class **GModelSpectralTable**. This will be removed in new versions of the package)
+  - To compute the number of photons produced during annihilation or decay of dark matter particles using PPPC4DMID tables. Here, it is also included EBL attenuation using [ebl-table project](https://github.com/me-manu/ebltable)
+2.  *dmflux_table*
+  - To generate `GModelSpectralTable` models for annihilation or decay of dark matter particles.
 
 There are also some files in *data* and *pfiles* folders:
 
 1.  *data*
   - Tables from PPPC4DMID project
-  - Events cube from a CTA simulation of Perseus region for 10h
 2.  *pfiles*
   - Parameter file of **csdmatter** app
   - Help of **csdmatter** app
 
 Finally, **ctaAnalysis** contains also the **csdmatter** app, based on cscripts.
 
+##  The csdmatter app
+
+The csdmatter app is based on how the cscripts are implemented within ctools. The csdmatter computes the upper-limits (at this moment, just) for annihilation cross-section for a famlily of mass points of dark matter particles. You can refer to *pfiles/csdmatter.par* and *pfiles/csdmatter.txt* to check the full list of input parameters, and the help of the app.
+
 ##  Installation
 
-In order to hava **ctaAnalysis** package availabe in your system you must to be sure that *ctools* and *gammalib* are loaded. Then to install **ctaAnalysis** you have two options:
+To have **ctaAnalysis** package availabe in your system you must to be sure that *ctools* and *gammalib* are loaded. Then to install **ctaAnalysis** you have two options:
 
 1. Cloning:
   - `$ git clone git@github.com:sergiohcdna/ctaAnalysis.git`
@@ -88,38 +84,41 @@ In order to hava **ctaAnalysis** package availabe in your system you must to be 
 
 Please note, that, if you want to contribute to the development of **csdmatter** and related classes, you must use the first option. Additionally, you can create a branch.
 
-##  The csdmatter app
+**Note:** There is `Deprecation` message when usin `python -m pip install .` referring that the local packages will be building in-place. You can take a look at the [discussion](https://github.com/pypa/pip/issues/7555). To avoid the deprecation message and test this new feature you must use:
 
-The csdmatter app is based on how the cscripts are implemented within ctools. The csdmatter computes the upper-limits (at this moment, just) for annihilation cross-section for a famlily of mass points of dark matter particles. You can refer to *pfiles/csdmatter.par* and *pfiles/csdmatter.txt* to check the full list of input parameters, and the help of the app.
+```
+$ python -m pip install . --use-feature=in-tree-build
+```
 
-### Run the csdmatter app
+### Running the csdmatter app
 
 Because the script is not part of the default cscripts, you must execute it using inside a python script.
 
 ### DM Limits Calculation
 
-To compute the ULs, **csdmatter** compute the ratio between the expected flux and the upper-limit flux obtained during the fit. The ratio is used to compute the exclusion limit using the reference annihilation cross-section used to compute the normalization of the dark matter spectrum. The ULs are computed for the number of masses points (*mnumpoints* parameter) in the range of masses indicated by the user (via *mmin* and *mmax* parameters)
-
+To compute the ULs, **csdmatter** compute the ratio between the expected integrated flux and the upper-limit integrated flux obtained during the fit. Both fluxes are computed between minimum energy `emin` and 95% of the available energy in the process. The ratio is used to compute the exclusion limit using the reference annihilation cross-section or the decay lifetime used to compute the normalization of the dark matter spectrum. The ULs are computed for masses points (*mnumpoints* parameter) in the range of masses indicated by the user (via *mmin* and *mmax* parameters)
 
 ### Results
 
 As already it was mentioned, the **csdmatter** app computes the upper-limits for a family of mass points (you can specify as many points as you need using the input parameter *mnumpoints*). These masses corresponds to differentes dark matter particles. They are separated logarithmically. For every mass value, the **csdmatter** app generate the corresponding GModel, and compute the upper-limit. Then, for every mass point, the following results are saved:
 
-1. MinEnergy
-2. MaxEnergy
-3. Mass
-4. Flux
-5. EFlux
-6. LogL
-7. TS
-8. UpperLimit
-9. ULCrossSection
-10. RefCrossSection
-11. ScaleFactor
-12. 
+1. MinEnergy &#8195;&#10140; Minimum Energy
+2. MaxEnergy &#10140; Maximum Energy
+3. Mass &#8195;&#8195;&#8195;&#8195;&#8195;&#8195;&#8195;&#8195;&#8195;&#8195;&#10140; Mass of the dark matter candidate
+4. Flux &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#10140; Flux at reference energy
+5. ErrFlux&#8195; &#8195; &#8195; &#8195; &#10140; Error associated to flux
+6. E2Flux&#8195; &#8195; &#8195; &#8195; &#8195;&#10140; Energy squared times flux
+7. E2ErrFlux &#8195; &#8195;&#10140; Energy squared times flux error
+6. LogL&#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#10140; Log-Likelihood obtained during the fit
+7. TS &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195;&#10140; Test Statistic
+8. UpperLimit &#8195;&#8195;&#10140; Upper limit to the flux
+11. ScaleFactor &#8195;&#10140; Ratio between theoretical and upper-limit flux
+12. ULLifetime or ULCrossSection &#10140; Exclusion Limit to Lifetime or Cross-section
+13. RefLifetime or RefCrossSection &#10140; Reference values used to compute the dark matter flux
+
 At the end, the results for all mass points are saved into a fits file.
 
-If you use the *run* method, the results table can be accessed via the *dmatter_fits* method. For example:
+If you use the `run` method, the results table can be accessed via the `dmatter_fits` method. For example:
 
 ```python
 from ctaAnalysis.csdmatter import csdmatter
@@ -131,19 +130,19 @@ thistools.run()
 results = thistool.dmatter_fits()
 print(results)
 ```
+You can take a look at the jupyter notebooks ``get_decayllimits` and `get_dmulimits` to learn how to run the `csdmatter` tool to get exclusion limits for a *Toy dark-matter halo*.
 
-##  Examples folder
+## Notebooks
 
-Related to the **ctaAnalysis** package, you can find examples on how to use:
+There are several jupyter notebooks to show you how to use the package. The notebooks are:
 
-1.  dmspectra class
-2.  dmflux class
-3.  csdmatter app
-4.  *create_dmtable*. How to create dark matter spectra fits file using **GModelSpectralTable**
-
-### Old
-
-There is afolder named **old**. The contents will be deprecated for posteriors versions of the **csdmatter** app. If we need some of the scripts within **old**, then would be moved to the current structure of the **ctaAnalysis package**
+- `dmspectrum`&#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#10140; Shows how to use the`dmspectrum` class to get dark matter spectrum for annihilation or decay
+- `tablemodel`&#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#10140; Shows how to use `dmtable` class to create `GModelSpectralTable` models for dark matter
+- `plottingdmSpectra`&#8195;&#10140; Shows how to plot spectra from table models
+- `dmflux`&#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195;&#10140; Shows how to compute gamma-ray fluxes using `dmspectrum` class. comparison with *Clumpy* gamma-ray flux for decay.
+- `dmsimulation`&#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#10140; Simulate the a dark-matter signal using `GModelSpectralTable` models
+- `get_dmulimits`&#8195; &#8195; &#8195; &#8195; &#8195; &#10140; Shows how to use `csdmatter` tool to compute exclusion limits for annihilation of dark matter particles
+- `getdecayllimits`&#8195; &#8195; &#8195; &#10140; Shows how to use `csdmatter` tool to compute exclusion limits for decay of dark matter particles
 
 ##  Final comments
 
