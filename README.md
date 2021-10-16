@@ -90,6 +90,15 @@ Please note, that, if you want to contribute to the development of **csdmatter**
 $ python -m pip install . --use-feature=in-tree-build
 ```
 
+**Note:** If you are updating a previous installation of `ctaAnalysis`, please be sure that you don't have any old `csdmatter.par` files in other locations. This will create a problem if new parameters were added to the version you are trying to install. A manual solution is to erase the `csdmatter.par` files from the `$CTOOLS/syspfiles` and your `$HOME`:
+
+```bash
+$ rm $CTOOLS/syspfiles/csdmatter.par
+$ rm $HOME/pfiles/csdmatter.par
+```
+
+After this, you can install `ctaAnalysis`.
+
 ### Running the csdmatter app
 
 Because the script is not part of the default cscripts, you must execute it using inside a python script.
@@ -130,7 +139,8 @@ thistools.run()
 results = thistool.dmatter_fits()
 print(results)
 ```
-You can take a look at the jupyter notebooks ``get_decayllimits` and `get_dmulimits` to learn how to run the `csdmatter` tool to get exclusion limits for a *Toy dark-matter halo*.
+
+You can take a look at the jupyter notebooks `get_decayllimits` and `get_dmulimits` to learn how to run the `csdmatter` tool to get exclusion limits for a *Toy dark-matter halo*.
 
 ## Notebooks
 
