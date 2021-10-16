@@ -187,8 +187,6 @@ class csdmatter(ctools.csobservation) :
         self['process'].string()
         self['channel'].string()
         self['ewcorrections'].boolean()
-        self['redshift'].real()
-        self['eblmodel'].string()
         self['emin'].real()
         self['emax'].real()
         self['modtype'].string()
@@ -253,7 +251,6 @@ class csdmatter(ctools.csobservation) :
                 raise RuntimeError(msg)
 
         else :
-
             msg = 'csdmatter only supports CTA-observations'
             raise RuntimeError(msg)
 
@@ -326,7 +323,7 @@ class csdmatter(ctools.csobservation) :
         #   the maxval to specify the valid range of the
         #   parameter
         minval  = 0.0
-        maxval  = 1.0e+40
+        maxval  = 1.0e+60
 
         #   Model type
         modtype  = self['modtype'].string()
@@ -341,12 +338,12 @@ class csdmatter(ctools.csobservation) :
         fluxnorm  = 0.0
 
         if self['process'].string() == 'ANNA' :
-            jfactor   = math.pow(10., self['logastfactor'].real())
-            sigmav    = math.pow(10., self['logsigmav'].real())
+            jfactor   = self._jfactor
+            sigmav    = self._sigmav
             fluxnorm  = sigmav * jfactor / (8.*gammalib.pi*dmmass*dmmass)
         elif self['process'].string() == 'DECAY' :
-            dfactor   = math.pow(10., self['logdfactor'].real())
-            lifetime  = math.pow(10., self['loglifetime'].real())
+            dfactor   = self._dfactor
+            lifetime  = self._lifetime
             fluxnorm  = dfactor / (4.*gammalib.pi*lifetime*dmmass)
 
         fluxnorm *= 1.e-3
@@ -355,6 +352,7 @@ class csdmatter(ctools.csobservation) :
         dmspec    = gammalib.GModelSpectralTable()
         dmspec.load(ffile)
         dmspec['Mass'].value(dmmass)
+        dmspec['Mass'].scale(1000.)
         dmspec['Channel'].value(ch_number)
         dmspec['Channel'].scale(1)
         dmspec['Normalization'].value(fluxnorm)
@@ -368,13 +366,10 @@ class csdmatter(ctools.csobservation) :
 
         #   Creating Spatial container
         if self['modtype'].string() == 'PointSource' :
-
             ra     = self['ra'].real()
             dec    = self['dec'].real()
             dmspat = gammalib.GModelSpatialPointSource(ra, dec)
-
         elif self['modtype'].string() == 'DiffuseSource' :
-
             mfile  = self['map_fits'].filename()
             dmspat = gammalib.GModelSpatialDiffuseMap(mfile)
 
@@ -429,14 +424,18 @@ class csdmatter(ctools.csobservation) :
 
         # Set reference energy and energy range for calculations
         # according to the DM process
+        thiseref = 0.0
+        thisemax = 0.0
         if self['process'].string() == 'ANNA' :
-            geref = gammalib.GEnergy(dmmass/2., 'GeV')
-            gemin = gammalib.GEnergy(self['emin'].real(), 'GeV')
-            gemax = gammalib.GEnergy(dmmass, 'GeV')
+            thiseref = dmmass/2.
+            thisemax = 0.95*dmmass
         elif self['process'].string() == 'DECAY' :
-            geref = gammalib.GEnergy(dmmass/4., 'GeV')
-            gemin = gammalib.GEnergy(self['emin'].real(), 'GeV')
-            gemax = gammalib.GEnergy(dmmass/2., 'GeV')
+            thiseref = dmmass/4.
+            thisemax = 0.95*dmmass/2.
+
+        geref = gammalib.GEnergy(thiseref, 'GeV')
+        gemin = gammalib.GEnergy(self['emin'].real(), 'GeV')
+        gemax = gammalib.GEnergy(thisemax, 'GeV')
 
         #   Then create GModel containers for source and bkg
         thisbkgmodel = self._gen_bkgmodel()
@@ -457,7 +456,6 @@ class csdmatter(ctools.csobservation) :
         self._log_string(gammalib.EXPLICIT , str(obssim.models()))
 
         #   Now, all the analysis is the same as in csspec script
-
         #   Get expected dmflux between emin and emax
         #   for the source of interest
         theoflux  = thisdmmodel.spectral().flux(gemin, gemax)
@@ -537,7 +535,7 @@ class csdmatter(ctools.csobservation) :
                 self._log_header3(gammalib.EXPLICIT,'Computing Upper Limit')
 
                 #   Instance for ctulimit
-                ulimit             = ctools.ctulimit(like.obs())
+                ulimit             = ctools.ctulimit(obssim)
                 ulimit['srcname']  = self['srcname'].string()
                 ulimit['eref']     = geref.TeV()
                 ulimit['emin']     = gemin.TeV()
@@ -547,6 +545,8 @@ class csdmatter(ctools.csobservation) :
                 if self._logVerbose() and self._logDebug() :
                     ulimit['debug'] = True
 
+                # ulimit.run()
+                # ulimit_value = ulimit.diff_ulimit()
                 #    Catching exceptions
                 try :
                     ulimit.run()
@@ -634,10 +634,7 @@ class csdmatter(ctools.csobservation) :
         #   Now, running multiprocessing
         if self._nthreads > 1 :
             # Compute for mass points
-            args = []
-            for i in range(len(self._masses)):
-                args.append((self, '_fit_mass_point', i))
-
+            args=[(self,'_fit_mass_point',i) for i in range(len(self._masses))]
             poolresults = mputils.process(self._nthreads, mputils.mpfunc, args)
 
             # Construct results
