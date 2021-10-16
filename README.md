@@ -102,17 +102,17 @@ To compute the ULs, **csdmatter** compute the ratio between the expected integra
 
 As already it was mentioned, the **csdmatter** app computes the upper-limits for a family of mass points (you can specify as many points as you need using the input parameter *mnumpoints*). These masses corresponds to differentes dark matter particles. They are separated logarithmically. For every mass value, the **csdmatter** app generate the corresponding GModel, and compute the upper-limit. Then, for every mass point, the following results are saved:
 
-1. MinEnergy &#8195;&#10140; Minimum Energy
+1. MinEnergy &#10140; Minimum Energy
 2. MaxEnergy &#10140; Maximum Energy
-3. Mass &#8195;&#8195;&#8195;&#8195;&#8195;&#8195;&#8195;&#8195;&#8195;&#8195;&#10140; Mass of the dark matter candidate
-4. Flux &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#10140; Flux at reference energy
-5. ErrFlux&#8195; &#8195; &#8195; &#8195; &#10140; Error associated to flux
-6. E2Flux&#8195; &#8195; &#8195; &#8195; &#8195;&#10140; Energy squared times flux
-7. E2ErrFlux &#8195; &#8195;&#10140; Energy squared times flux error
-6. LogL&#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#10140; Log-Likelihood obtained during the fit
-7. TS &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195;&#10140; Test Statistic
-8. UpperLimit &#8195;&#8195;&#10140; Upper limit to the flux
-11. ScaleFactor &#8195;&#10140; Ratio between theoretical and upper-limit flux
+3. Mass &#10140; Mass of the dark matter candidate
+4. Flux &#10140; Flux at reference energy
+5. ErrFlux &#10140; Error associated to flux
+6. E2Flux &#10140; Energy squared times flux
+7. E2ErrFlux &#10140; Energy squared times flux error
+6. LogL &#10140; Log-Likelihood obtained during the fit
+7. TS &#10140; Test Statistic
+8. UpperLimit &#10140; Upper limit to the flux
+11. ScaleFactor &#10140; Ratio between theoretical and upper-limit flux
 12. ULLifetime or ULCrossSection &#10140; Exclusion Limit to Lifetime or Cross-section
 13. RefLifetime or RefCrossSection &#10140; Reference values used to compute the dark matter flux
 
@@ -136,13 +136,13 @@ You can take a look at the jupyter notebooks ``get_decayllimits` and `get_dmulim
 
 There are several jupyter notebooks to show you how to use the package. The notebooks are:
 
-- `dmspectrum`&#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#10140; Shows how to use the`dmspectrum` class to get dark matter spectrum for annihilation or decay
-- `tablemodel`&#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#10140; Shows how to use `dmtable` class to create `GModelSpectralTable` models for dark matter
-- `plottingdmSpectra`&#8195;&#10140; Shows how to plot spectra from table models
-- `dmflux`&#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#8195;&#10140; Shows how to compute gamma-ray fluxes using `dmspectrum` class. comparison with *Clumpy* gamma-ray flux for decay.
-- `dmsimulation`&#8195; &#8195; &#8195; &#8195; &#8195; &#8195; &#10140; Simulate the a dark-matter signal using `GModelSpectralTable` models
-- `get_dmulimits`&#8195; &#8195; &#8195; &#8195; &#8195; &#10140; Shows how to use `csdmatter` tool to compute exclusion limits for annihilation of dark matter particles
-- `getdecayllimits`&#8195; &#8195; &#8195; &#10140; Shows how to use `csdmatter` tool to compute exclusion limits for decay of dark matter particles
+- `dmspectrum` &#10140; Shows how to use the`dmspectrum` class to get dark matter spectrum for annihilation or decay
+- `tablemodel` &#10140; Shows how to use `dmtable` class to create `GModelSpectralTable` models for dark matter
+- `plottingdmSpectra`&#10140; Shows how to plot spectra from table models
+- `dmflux` &#10140; Shows how to compute gamma-ray fluxes using `dmspectrum` class. comparison with *Clumpy* gamma-ray flux for decay.
+- `dmsimulation` &#10140; Simulate the a dark-matter signal using `GModelSpectralTable` models
+- `get_dmulimits` &#10140; Shows how to use `csdmatter` tool to compute exclusion limits for annihilation of dark matter particles
+- `getdecayllimits` &#10140; Shows how to use `csdmatter` tool to compute exclusion limits for decay of dark matter particles
 
 ##  Final comments
 
