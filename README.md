@@ -68,7 +68,7 @@ Finally, **ctaAnalysis** contains also the **csdmatter** app, based on cscripts.
 
 ##  The csdmatter app
 
-The csdmatter app is based on how the cscripts are implemented within ctools. The csdmatter computes the upper-limits (at this moment, just) for annihilation cross-section for a famlily of mass points of dark matter particles. You can refer to *pfiles/csdmatter.par* and *pfiles/csdmatter.txt* to check the full list of input parameters, and the help of the app.
+The csdmatter app is based on how the cscripts are implemented within ctools. The csdmatter computes the upper-limits (at this moment, just) for annihilation cross-section for a famlily of mass points of dark matter particles. You can refer to [*pfiles/csdmatter.par*](ctaAnalysis/pfiles/csdmatter.par) and [*pfiles/csdmatter.txt*](ctaAnalysis/pfiles/csdmatter.txt) to check the full list of input parameters, and the help of the app.
 
 ##  Installation
 
