@@ -449,6 +449,9 @@ class csdmatter(ctools.csobservation) :
             # if model.classname() != 'GCTAModelIrfBackground' :
             obssim.models().remove(model.name())
 
+        if not obssim.models().is_empty():
+            obssim.models().clear()
+
         obssim.models().append(thisdmmodel)
         obssim.models().append(thisbkgmodel)
 
@@ -459,6 +462,8 @@ class csdmatter(ctools.csobservation) :
         #   Get expected dmflux between emin and emax
         #   for the source of interest
         theoflux  = thisdmmodel.spectral().flux(gemin, gemax)
+        if theoflux == 0.0 :
+            theoflux = -1.0
 
         #   Header
         self._log_header1(gammalib.TERSE, 'Fitting DM Model')
