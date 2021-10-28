@@ -3,8 +3,9 @@
 # Perform Analysis for DM models
 #
 # Copyright (C) 2020 Sergio, Judit, Miguel
-# Modified, Mid     2021, Sergio
-# Modified, October 2021, Sergio
+# Modified,    Mid     2021, Sergio
+# Modified,    October 2021, Sergio
+# Modified, 27 October 2021, Sergio
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +25,9 @@ import sys
 import gammalib
 import ctools
 from cscripts import mputils
+
+from ctaAnalysis.dmspectrum.dmspectra import dmspectrum
+from ctaAnalysis.dmspectrum.dmflux_table import dmtable_ch
 
 import os
 import math
@@ -187,10 +191,12 @@ class csdmatter(ctools.csobservation) :
         self['process'].string()
         self['channel'].string()
         self['ewcorrections'].boolean()
+        self['eblmodel'].string()
+        self['redshift'].real()
         self['emin'].real()
         self['emax'].real()
         self['modtype'].string()
-        self['dmspecfits'].filename()
+        # self['dmspecfits'].filename()
 
         #   Query parameters according to the process
         if self['process'].string() == 'ANNA' :
@@ -278,7 +284,8 @@ class csdmatter(ctools.csobservation) :
         width = (mlogmax - mlogmin)/(mpoints - 1)
 
         for index in range(mpoints) :
-            masses.append(math.pow(10., mlogmin + index * width))
+            mass = math.ceil(math.pow(10., mlogmin + index * width))
+            masses.append(float(mass))
 
         #   Return
         return masses
@@ -304,14 +311,15 @@ class csdmatter(ctools.csobservation) :
 
     def _gen_model(self, i) :
         """
-        in-fly Creation of DM model for annihilation
+        in-fly Creation of DM model for annihilation or decay
 
         Return
         ------
-        GModel for a dark matter annihilation
-        The GModel container used is the GModelSpectralTable
-        In this way, I can put the mass and channel as parameter
-        of the model. The normalization is computed by (anna):
+        GModel for a dark matter annihilation or decay
+        The GModel container used is the GModelSpectralTable.
+        In order to properly manage OnOff observations
+        the dm table-model now has only the mass as parameter
+        The normalization is computed by (anna):
             N_0 = J * sigma_v / (8*pi*mass**2)
         or (decay):
             N_0 = D / (4*pi*mass*lifetime)
@@ -321,9 +329,13 @@ class csdmatter(ctools.csobservation) :
         #   the prefactor parameter
         #   Note: I am not sure why I need to rise so much
         #   the maxval to specify the valid range of the
-        #   parameter
+        #   parameter. Probably because the likelihood profile
+        #   is in extremely flat
         minval  = 0.0
         maxval  = 1.0e+60
+
+        #   Number of energy points used to compute the gamma-ray flux
+        epoints = 200
 
         #   Model type
         modtype  = self['modtype'].string()
@@ -334,6 +346,7 @@ class csdmatter(ctools.csobservation) :
         #   Create spectral container using GModelSpectralTable
         #   and setup the mass, channel and normalization of the model
         ch_number = self._get_channel_key()
+        channel   = self['channel'].string()
         dmmass    = self._masses[i]
         fluxnorm  = 0.0
 
@@ -347,22 +360,68 @@ class csdmatter(ctools.csobservation) :
             fluxnorm  = dfactor / (4.*gammalib.pi*lifetime*dmmass)
 
         fluxnorm *= 1.e-3
-        ffile     = self['dmspecfits'].filename()
 
-        dmspec    = gammalib.GModelSpectralTable()
-        dmspec.load(ffile)
-        dmspec['Mass'].value(dmmass)
-        dmspec['Mass'].scale(1000.)
-        dmspec['Channel'].value(ch_number)
-        dmspec['Channel'].scale(1)
-        dmspec['Normalization'].value(fluxnorm)
-        dmspec['Normalization'].range(minval, maxval)
+        #   Compute range of masses around the mass of interest
+        #   This is to avoid spectrum with a lot of zeros
+        #   for very low masses in very wide mass ranges
+        #   (like spectrum computed between 0.1 GeV and 100 TeV)
+        #   Assuming log-spacing with full range of dlogm = 0.1
+        #   If the mass is close to 1.e+5 GeV, then the range becomes:
+        #       mmin = 10**(math.log10(mass)-delta_m)
+        #       mmax = mass of interest
+        #   The good part of this is I don't need
+        #   a lot of mass points to generate the table
+        #   This should speed up the analysis(?)
+        delta_m  = 0.2
+        thismmin = 0.0
+        thismmax = 0.0
 
-        #   Mass and Channel parameters should be fixed
+        # number of points between mmin and mmax in the table-model
+        n = 50
+
+        if dmmass < 8.9e+4 :
+            thismmin = 10**(math.log10(dmmass)-0.5*delta_m)
+            thismmax = 10**(math.log10(dmmass)+0.5*delta_m)
+        else :
+            thismmin = 10**(math.log10(dmmass)-delta_m)
+            thismmax = dmmass
+
+        #   Create instance of dmspectrum
+        #   to compute the dm-spectrum from annihilation or decay
+        emin     = self['emin'].real()
+        hasew    = self['ewcorrections'].boolean()
+        process  = self['process'].string()
+        eblmodel = self['eblmodel'].string()
+        redshift = self['redshift'].real()
+
+        dminterp = dmspectrum(dmmass, emin, thismmax, channel,
+            redshift, process=process.lower(), eblmod=eblmodel,
+            has_EW=hasew, epoints=epoints)
+
+        #   Create instance of dmtable_ch with default parameters
+        dmspec = dmtable_ch(srcname, thismmin, thismmax, n, dminterp)
+
+        #   Update properties according to process
+        if process == 'ANNA' :
+            dmspec.process = [process.lower(), self._jfactor, self._sigmav]
+        elif process == 'DECAY' :
+            dmspec.process = [process.lower(), self._dfactor, self._lifetime]
+
+        #   Get the table model
+        dmspec.create_modeltable()
+        dmtable = dmspec.tablemodel
+
+        #   tunning the table-model
+
+        dmtable['Mass'].value(dmmass)
+        dmtable['Mass'].scale(1.)
+        dmtable['Normalization'].value(fluxnorm)
+        dmtable['Normalization'].range(minval, maxval)
+
+        #   Mass parameter should be fixed
         #   But, just to be sure
-        dmspec['Mass'].fix()
-        dmspec['Channel'].fix()
-        dmspec['Normalization'].free()
+        dmtable['Mass'].fix()
+        dmtable['Normalization'].free()
 
         #   Creating Spatial container
         if self['modtype'].string() == 'PointSource' :
@@ -376,7 +435,7 @@ class csdmatter(ctools.csobservation) :
         #   Then generate GModel from spatial and spectral part
         #   This must avoid to create a lot of XML Templates
         #   to specify DM models :P
-        dmmodel = gammalib.GModelSky(dmspat, dmspec)
+        dmmodel = gammalib.GModelSky(dmspat, dmtable)
         dmmodel.name(srcname)
         dmmodel.tscalc(True)
 
@@ -418,12 +477,14 @@ class csdmatter(ctools.csobservation) :
         dmmass = self._masses[i]
         header = 'Compute DM model: ' + self['process'].string()
         self._log_header1(gammalib.TERSE, header)
-        self._log_header2(gammalib.EXPLICIT, 'Mass point ' + str(i + 1))
+        msg = 'Mass point {0}: {1}'.format(i+1, dmmass)
+        self._log_header2(gammalib.EXPLICIT, msg)
         # Get the Sky DM-model for the target
         thisdmmodel = self._gen_model(i)
 
         # Set reference energy and energy range for calculations
         # according to the DM process
+        # the 0.95 factor is to avoid problems at the end of the spectrum
         thiseref = 0.0
         thisemax = 0.0
         if self['process'].string() == 'ANNA' :
@@ -437,7 +498,7 @@ class csdmatter(ctools.csobservation) :
         gemin = gammalib.GEnergy(self['emin'].real(), 'GeV')
         gemax = gammalib.GEnergy(thisemax, 'GeV')
 
-        #   Then create GModel containers for source and bkg
+        #   Create IRF-bkg model
         thisbkgmodel = self._gen_bkgmodel()
 
         #   Making a deep copy of the observation
@@ -449,9 +510,13 @@ class csdmatter(ctools.csobservation) :
             # if model.classname() != 'GCTAModelIrfBackground' :
             obssim.models().remove(model.name())
 
+        #   Make sure that the models container is empty
+        #   I only want to test the dm model
         if not obssim.models().is_empty():
             obssim.models().clear()
 
+        #   Append models to the observation container
+        #   This should work also for OnOff observations
         obssim.models().append(thisdmmodel)
         obssim.models().append(thisbkgmodel)
 
@@ -867,6 +932,13 @@ class csdmatter(ctools.csobservation) :
         """
         #   Return
         return self._lifetime
+
+    def masses(self) :
+        """
+        Return list of masses used to compute hte ULs
+        """
+        #   Return
+        return self._masses
 
 # ======================== #
 # Main routine entry point #
