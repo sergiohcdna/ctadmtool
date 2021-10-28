@@ -143,13 +143,19 @@ channel [string] <b|Mu|Tau|t|W|Z>
 ewcorrection [boolean]
     If the spectrum has EW corrections. This allows to read properly the GModelSpectralTable model and extract the channels.
 
-logsigmav [real] <-35.0 - -10.0>
+eblmodel [string] <franceschini|franceschini2017|kneiske|finke|dominguez|dominguez-upper|dominguez-lower|inuoe|inuoe-low-pop3|inuoe-up-pop3|gilmore|gilmore-fixed>
+    EBL model to compute attenuation of gamma-ray flux
+
+redshift [real] <0 - 2.0>
+    Redshift of the source. Used to compute gamma-ray flux
+
+logsigmav [real] <-38.0 - -5.0>
     Logarithm of annihilation cross-section (in cm**3/s)
 
 logastfactor [real]
     Logarithm of astrophysical j factor (in GeV**2/cm**5)
 
-loglifetime [real] <20.0 - 40.0>
+loglifetime [real] <10.0 - 50.0>
     Logarithm of decay lifetime (in s)
 
 logdfactor [real]
