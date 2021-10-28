@@ -27,3 +27,101 @@ Long explanation of commits added in ctaAnalysis v0.1.1
  
 - [multiprocessing] : Using GVector as container for masses points causes the following error "python TypeError: can't pickle SwigPyObject objects". Change masses container to a list.
 
+
+[Sergio]
+#   Compute DM decay limits
+## List of changes from update 1012,2021
+
+1. dmspectrum class
+    1. add decay as option to compute dm spectra
+    2. calculation of decay spectrum
+    3. add emin, emax and epoints as parameters to compute energy range where the spectrum is computed
+    4. Add properties emin and emax. Setters update the list used to compute the spectrum
+    5. aAdd energy setter with tuple with emin, emax, epoints as input parameter
+2. notebooks/
+    1. dmspectrum —> Show how-to use properly the dmspectrum class
+    2. dmflux          —> Show how-to compute gamma-ray flux for a specific target. Comparison with CLUMPY [Everything OK!]
+3. pfiles/csdmatter.par
+    1. Add decay as option for process
+    2. Add logdfactor
+    3. Add loglifetime
+    4. Remove calc_t
+    5. Comment fix_srcs and fix_bkg, as not needed
+    6. Remove redshift and eblmodel input parameters
+4. csdmatter.py
+    1. stylish
+    2. Add dictionary for available channels in PPPC4DMID files without EW corrections
+    3. In __init__, self._masses is created as an empty list
+    4. In __init__, add the class members jfactor, dfactor, sigmav and lifetime to retrieve reference parameters of the dark matter candidate. Initializatoin to zero before running the app where the I called the _get_parameters method.
+    5. In query parameters: request parameters according to the dm process
+    6. In _get_channel_key, recover number of channel according to dm process
+    7. Add _gen_model to create GModelSky container and take care of the spectral part according to the dm-process
+    8. In _fit_mass_point, define E_ref, E_min, and E_max according to the DM-process
+    9. In _fit_mass_point, the calculation of theoretical and upper-limit integrated fluxes is computed up to 95% of the maximum available anergy (mass or mass/2 according to the case)
+    10. In _fit_mass_point, show the GModels container after setting the DM model
+    11. In _fit_mass_point, add e2flux and e2flux_err to dictionary with results for mass point
+    12. In _fit_mass_point, add key to result according to dark-matter process: 
+        1. DECAY
+            1. lifetime_ref
+            2. lifetime_lim
+        2. ANNA
+            1. sigmav_ref
+            2. sigmav_lim
+    13. In _fit_mass_point, recover catching of exceptions when running ctulimit instance
+    14. In _fit_mass_point, calculation of exclusion limit for parameter of interest according to the process:
+        1. DECAY:
+            1. sigmav_UL = sigmav_ref * scale_factor
+        2. ANNA:
+            1. lifetime_UL = lifetime_ref / scale_factor
+    15. In _fit_mass_point, When the user request a DiffuseSource, I was asking for GModelSpatialDiffuseCube, but the spatial component of the source used GModelSpatialDiffuseMap. I also update the mc_cone method to newer versions of gammalib
+    16. In _fit_mass_point, recover of e2dPhi/dE and the associated error
+    17. In _create_fits, add e2flux and e2flux_err columns
+    18. In _create_fits, add paroi (parameter of interest) columns according to the dark-matter process
+    19. In _create_fits, add units to e2flux, e2flux_err and paroi columns
+    20. In _create_fits, append new columns to table
+    21. Add jfactor, dfactor, sigmav and lifetime methods to get this properties of the dark matter candidate
+5. ctaAnalysis/dmspectrum/dmflux_table
+    1. In __init__
+        1. Include argument dminterp of instance dmspectrum class
+        2. Add mmin, mmx and mpoints
+        3. Compute list of masses used to compute the table model
+        4. Check that dminterp is an object of instance dmspectrum class
+        5. update class member allowed channels if dminterp has EW corrections
+        6. Add class member _model
+        7. Add _lifetime and _dfactor class members
+    2. Add property and setter for lifetim
+    3. Add property and setter for dfactor
+    4. Add property mmin and mmax. In the corresponding setters, if mmin or mmax changes, then also updates masses list
+    5. Add property masses: list of masses used to compute the spectrum
+    6. Add static method to generate list with masses points
+    7. Add property hasEW. If the property changes, then update the allowed_channels property too
+    8. Add property allowed_channels to get a tuple of the allowed channels according to the flag hasEW. No setter defined
+    9. Add tablemodel property to get the table with spectrum. No setter defined
+    10. Add property process. The setter takes as argument a list with [process_string, ast_factor, parameter of interest(sigmav or lifetime)], and update the parameters according to process_string
+    11. Add static methods _norm_anna and _norm_decay to compute the normalization of the gamma-ray flux
+    12. Add create_modeltable method to create GModelSpectralTable
+    13. Add save method to save the model table
+    14. Add elist property. Setter change the value of the values used to compute the spectrum
+6. notebooks/
+    1. tablemodel. Show how-to use dmflux_table class
+    2. dmsimulation. Use fits table from GModelSpectralTable to generate the simulation
+
+
+[Sergio]
+#   Solve issue with management of GCTAOnOff Observations during likelihood fitting
+## List of changes from update 1028,2021
+
+1. csdmatter.par/csdmatter.txt:
+    1. Added eblmodel and redshift options
+    2. Remove dmspecfits option
+2. csdmatter app
+    1. add import of dmspectrum and dmtable_ch classes
+    2. add eblmodel and redshift to _get_parameters method
+    3. in _mlogspace: round up the masses obtained in the list
+    4. in _gen_model: generate table model in a small range of masses around the mass of interest with spectrum computed between global emin and the maximum mass in the new range of masses —> Avoid numerical precision issues. The new range of masses is computed assuming a full log-width of 0.2 and number of mass points equal to 50 (not sure if is really important to pass as input parameters, probably not)
+    5. Issue with GCTAOnOffObservation solved (?)
+    6. Add masses method to get the list of masses used to compute the upper-limit —> I feel this is not needed because the user can acces to the list of masses via the fits table with results (LoL)
+3. Update notebooks to use eblmodel and redshift input parameters
+4. dmflux_table:
+    1. Add dmtable_ch class to compute table models for only one channels
+
