@@ -88,7 +88,7 @@ def ValidValue( attr_name , min_val=None , max_val=None ) :
             if max_val is not None and value > max_val :
 
                 msg = ( '\n\t{0} with value {1} '.format( attr_name , value ) +
-                    'is above the maximum value allowed: {0}'.format( min_val ) )
+                    'is above the maximum value allowed: {0}'.format( max_val ) )
 
                 raise ValueError( msg )
 
