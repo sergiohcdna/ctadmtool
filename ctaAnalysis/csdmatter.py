@@ -331,11 +331,12 @@ class csdmatter(ctools.csobservation) :
         #   the maxval to specify the valid range of the
         #   parameter. Probably because the likelihood profile
         #   is in extremely flat
+        self._log_header3(gammalib.EXPLICIT, 'New DM-spectral model')
         minval  = 0.0
         maxval  = 1.0e+60
 
         #   Number of energy points used to compute the gamma-ray flux
-        epoints = 200
+        epoints = 100
 
         #   Model type
         modtype  = self['modtype'].string()
@@ -361,6 +362,8 @@ class csdmatter(ctools.csobservation) :
 
         fluxnorm *= 1.e-3
 
+        msg = 'New range around mass {0}'.format(dmmass)
+        self._log_header3(gammalib.EXPLICIT, msg)
         #   Compute range of masses around the mass of interest
         #   This is to avoid spectrum with a lot of zeros
         #   for very low masses in very wide mass ranges
@@ -372,19 +375,27 @@ class csdmatter(ctools.csobservation) :
         #   The good part of this is I don't need
         #   a lot of mass points to generate the table
         #   This should speed up the analysis(?)
-        delta_m  = 0.2
+        delta_m  = 0.1
         thismmin = 0.0
         thismmax = 0.0
 
         # number of points between mmin and mmax in the table-model
         n = 50
 
-        if dmmass < 8.9e+4 :
-            thismmin = 10**(math.log10(dmmass)-0.5*delta_m)
-            thismmax = 10**(math.log10(dmmass)+0.5*delta_m)
-        else :
-            thismmin = 10**(math.log10(dmmass)-delta_m)
+        if self._onoff_mode :
+            thismmin = math.ceil(10**(math.log10(dmmass)-delta_m))
+            thismmin = float(thismmin)
             thismmax = dmmass
+        else :
+            thismmin = math.ceil(10**(math.log10(dmmass)-0.5*delta_m))
+            thismmin = float(thismmin)
+            if dmmass < 8.9e+4 :
+                thismmax = math.ceil(10**(math.log10(dmmass)+0.5*delta_m))
+                thismmax = float(thismmax)
+            else :
+                thismmax = dmmass
+
+        self._log_string(gammalib.TERSE, str([thismmin, thismmax]))
 
         #   Create instance of dmspectrum
         #   to compute the dm-spectrum from annihilation or decay
@@ -414,14 +425,17 @@ class csdmatter(ctools.csobservation) :
         #   tunning the table-model
 
         dmtable['Mass'].value(dmmass)
-        dmtable['Mass'].scale(1.)
+        dmtable['Mass'].scale(1.0)
         dmtable['Normalization'].value(fluxnorm)
+        dmtable['Normalization'].scale(1.0)
         dmtable['Normalization'].range(minval, maxval)
 
         #   Mass parameter should be fixed
         #   But, just to be sure
         dmtable['Mass'].fix()
         dmtable['Normalization'].free()
+
+        self._log_string(gammalib.EXPLICIT , str(dmtable))
 
         #   Creating Spatial container
         if self['modtype'].string() == 'PointSource' :
@@ -489,10 +503,10 @@ class csdmatter(ctools.csobservation) :
         thisemax = 0.0
         if self['process'].string() == 'ANNA' :
             thiseref = dmmass/2.
-            thisemax = 0.95*dmmass
+            thisemax = 0.9*dmmass
         elif self['process'].string() == 'DECAY' :
             thiseref = dmmass/4.
-            thisemax = 0.95*dmmass/2.
+            thisemax = 0.9*dmmass/2.
 
         geref = gammalib.GEnergy(thiseref, 'GeV')
         gemin = gammalib.GEnergy(self['emin'].real(), 'GeV')
@@ -517,8 +531,11 @@ class csdmatter(ctools.csobservation) :
 
         #   Append models to the observation container
         #   This should work also for OnOff observations
-        obssim.models().append(thisdmmodel)
-        obssim.models().append(thisbkgmodel)
+        if self._onoff_mode :
+            obssim.models().append(thisdmmodel)
+        else :
+            obssim.models().append(thisdmmodel)
+            obssim.models().append(thisbkgmodel)
 
         #   Show mymodels in logfile, just to check that everything is Ok!
         self._log_string(gammalib.EXPLICIT , str(obssim.models()))
@@ -571,9 +588,10 @@ class csdmatter(ctools.csobservation) :
         self._log_header3(gammalib.EXPLICIT, 'Performing likelihood fit')
 
         #   Maximum likelihood fit via ctlike
-        like             = ctools.ctlike(obssim)
-        like['edisp']    = self['edisp'].boolean()
-        like['nthreads'] = 1
+        like              = ctools.ctlike(obssim)
+        like['edisp']     = self['edisp'].boolean()
+        like['statistic'] = self['statistic'].string()
+        like['nthreads']  = 1
 
         #   Chatter
         if self._logVerbose() and self._logDebug() :
@@ -589,6 +607,7 @@ class csdmatter(ctools.csobservation) :
         result['logL'] = logL0
 
         #   Write models results
+        self._log_header1(gammalib.TERSE, 'Results from fitting')
         self._log_string(gammalib.EXPLICIT, str(like.obs().models()))
 
         #   Continue only if logL0 is different from zero
@@ -605,11 +624,12 @@ class csdmatter(ctools.csobservation) :
                 self._log_header3(gammalib.EXPLICIT,'Computing Upper Limit')
 
                 #   Instance for ctulimit
-                ulimit             = ctools.ctulimit(obssim)
-                ulimit['srcname']  = self['srcname'].string()
-                ulimit['eref']     = geref.TeV()
-                ulimit['emin']     = gemin.TeV()
-                ulimit['emax']     = gemax.TeV()
+                ulimit              = ctools.ctulimit(obssim)
+                ulimit['srcname']   = self['srcname'].string()
+                ulimit['eref']      = geref.TeV()
+                ulimit['emin']      = gemin.TeV()
+                ulimit['emax']      = gemax.TeV()
+                ulimit['statistic'] = self['statistic'].string()
 
                 #   Set chatter
                 if self._logVerbose() and self._logDebug() :
