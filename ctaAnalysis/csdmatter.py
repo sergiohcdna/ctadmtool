@@ -405,7 +405,14 @@ class csdmatter(ctools.csobservation) :
         eblmodel = self['eblmodel'].string()
         redshift = self['redshift'].real()
 
-        dminterp = dmspectrum(dmmass, emin, thismmax, channel,
+        emax = 0.0
+
+        if process == 'ANNA' :
+            emax = 0.9*thismmax
+        elif process == 'DECAY' :
+            emax = 0.9*thismmax/2.
+
+        dminterp = dmspectrum(dmmass, emin, emax, channel,
             redshift, process=process.lower(), eblmod=eblmodel,
             has_EW=hasew, epoints=epoints)
 
