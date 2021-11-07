@@ -416,14 +416,21 @@ class csdmatter(ctools.csobservation) :
             redshift, process=process.lower(), eblmod=eblmodel,
             has_EW=hasew, epoints=epoints)
 
+        self._log_string(gammalib.EXPLICIT,'Create dark matter model')
         #   Create instance of dmtable_ch with default parameters
         dmspec = dmtable_ch(srcname, thismmin, thismmax, n, dminterp)
 
+        msg = 'Update properties according to process {}'.format(process)
+        self._log_string(gammalib.EXPLICIT,msg)
         #   Update properties according to process
         if process == 'ANNA' :
             dmspec.process = [process.lower(), self._jfactor, self._sigmav]
         elif process == 'DECAY' :
             dmspec.process = [process.lower(), self._dfactor, self._lifetime]
+
+        msg = 'Update to channel {}'.format(channel)
+        self._log_string(gammalib.EXPLICIT,msg)
+        dmspec.channel = channel
 
         #   Get the table model
         dmspec.create_modeltable()
