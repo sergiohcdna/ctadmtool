@@ -565,7 +565,8 @@ class dmtable() :
         spectra = gammalib.GNdarray(self._mpoints,n_chs,n_eng)
 
         #   filling the spectrum
-        for index, mass in tqdm(enumerate(self._masses)):
+        desc = 'Computing {}-spectrrum'.format(self._dminterp.process)
+        for index, mass in tqdm(enumerate(self._masses),desc=desc,leave=False):
             #   Change the value of the mass
             self._dminterp.mass = mass
             for cindex, thisch in enumerate(self._allowed_channels):
@@ -1207,7 +1208,8 @@ class dmtable_ch() :
         spectra = gammalib.GNdarray(self._mpoints,n_eng)
 
         #   filling the spectrum
-        for index, mass in tqdm(enumerate(self._masses)):
+        desc = 'Computing {}-spectrrum'.format(self._dminterp.process)
+        for index, mass in tqdm(enumerate(self._masses),desc=desc,leave=False):
             #   Change the value of the mass
             self._dminterp.mass = mass
             dmspec              = self._dminterp.spectra()
