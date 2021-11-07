@@ -125,3 +125,10 @@ Long explanation of commits added in ctaAnalysis v0.1.1
 4. dmflux_table:
     1. Add dmtable_ch class to compute table models for only one channels
 
+
+[Sergio]
+#   Bug fix
+## List of changes added from update 1107,2021
+
+1.  During likelihood fitting and UL calculation, update instance of dmtable_ch to channel specified in csdmatter
+2.  Style, tqdm progress-bar shows message 'Computation of {process}-spectra'
