@@ -132,3 +132,9 @@ Long explanation of commits added in ctaAnalysis v0.1.1
 
 1.  During likelihood fitting and UL calculation, update instance of dmtable_ch to channel specified in csdmatter
 2.  Style, tqdm progress-bar shows message 'Computation of {process}-spectra'
+
+[Sergio]
+
+#   Rename repository and python package
+
+1. Update all files and notebooks to the new name of the package and repository

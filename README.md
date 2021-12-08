@@ -1,4 +1,4 @@
-# ctaAnalysis Package
+# ctadmtool Package
 
 This project is dedicated to perform analysis with `ctools` and `gammalib` to compute upper limits of annihilation cross-section and decay lifetime of dark matter particles using CTA observations.
 
@@ -18,7 +18,7 @@ Aditionally, you can select whether or not to include electroweak (EW) correctio
 
 ## Current known issues:
 
-1. **csdmatter** fails to correctly process *GCTAOnOffObservations*
+1. Compute gamma-ray spectrum of decay to W's of WIMPs with masses below 160 GeV
 
 If you found any issue during test or use of this project, please open an Issue.
 
@@ -26,7 +26,7 @@ If you found any issue during test or use of this project, please open an Issue.
 
 The contents of the project are:
 
-2.  **ctaAnalysis**
+2.  **ctadmtool**
   * *data*
   * *dmspectrum*
   * *pfiles*
@@ -42,9 +42,9 @@ The contents of the project are:
 
 You can set the ```GAMMALIB``` and ```CTOOLS``` environment variables as usual. See the documentation about gammalib and ctools.
 
-##  The ctaAnalysis python package
+##  The ctadmtool python package
 
-`ctaAnalysis` is a python package to compute exclusion limits for model-independent dark matter searches with CTA. The package is an effort to have a common set of tools and use as basic example for analysis. There are two subpackages:
+`ctadmtool` is a python package to compute exclusion limits for model-independent dark matter searches with CTA. The package is an effort to have a common set of tools and use as basic example for analysis. There are two subpackages:
 
 1. **dmspectrum**
 2. **tools**
@@ -64,23 +64,23 @@ There are also some files in *data* and *pfiles* folders:
   - Parameter file of **csdmatter** app
   - Help of **csdmatter** app
 
-Finally, **ctaAnalysis** contains also the **csdmatter** app, based on cscripts.
+Finally, **ctadmtool** contains also the **csdmatter** app, based on cscripts.
 
 ##  The csdmatter app
 
-The csdmatter app is based on how the cscripts are implemented within ctools. The csdmatter computes the upper-limits (at this moment, just) for annihilation cross-section for a famlily of mass points of dark matter particles. You can refer to [*pfiles/csdmatter.par*](ctaAnalysis/pfiles/csdmatter.par) and [*pfiles/csdmatter.txt*](ctaAnalysis/pfiles/csdmatter.txt) to check the full list of input parameters, and the help of the app.
+The csdmatter app is based on how the cscripts are implemented within ctools. The csdmatter computes the upper-limits (at this moment, just) for annihilation cross-section for a famlily of mass points of dark matter particles. You can refer to [*pfiles/csdmatter.par*](ctadmtool/pfiles/csdmatter.par) and [*pfiles/csdmatter.txt*](ctadmtool/pfiles/csdmatter.txt) to check the full list of input parameters, and the help of the app.
 
 ##  Installation
 
-To have **ctaAnalysis** package availabe in your system you must to be sure that *ctools* and *gammalib* are loaded. Then to install **ctaAnalysis** you have two options:
+To have **ctadmtool** package availabe in your system you must to be sure that *ctools* and *gammalib* are loaded. Then to install **ctadmtool** you have two options:
 
 1. Cloning:
-  - `$ git clone git@github.com:sergiohcdna/ctaAnalysis.git`
-  - `$ cd ctaAnalysis`
+  - `$ git clone git@github.com:sergiohcdna/ctadmtool.git`
+  - `$ cd ctadmtool`
   - `$ python -m pip install .`
 
 2. Using pip directly:
-  - `$ python -m pip install git@github.com:sergiohcdna/ctaAnalysis.git`
+  - `$ python -m pip install git@github.com:sergiohcdna/ctadmtool.git`
 
 Please note, that, if you want to contribute to the development of **csdmatter** and related classes, you must use the first option. Additionally, you can create a branch.
 
@@ -90,14 +90,14 @@ Please note, that, if you want to contribute to the development of **csdmatter**
 $ python -m pip install . --use-feature=in-tree-build
 ```
 
-**Note:** If you are updating a previous installation of `ctaAnalysis`, please be sure that you don't have any old `csdmatter.par` files in other locations. This will create a problem if new parameters were added to the version you are trying to install. A manual solution is to erase the `csdmatter.par` files from the `$CTOOLS/syspfiles` and your `$HOME`:
+**Note:** If you are updating a previous installation of `ctadmtool`, please be sure that you don't have any old `csdmatter.par` files in other locations. This will create a problem if new parameters were added to the version you are trying to install. A manual solution is to erase the `csdmatter.par` files from the `$CTOOLS/syspfiles` and your `$HOME`:
 
 ```bash
 $ rm $CTOOLS/syspfiles/csdmatter.par
 $ rm $HOME/pfiles/csdmatter.par
 ```
 
-After this, you can install `ctaAnalysis`.
+After this, you can install `ctadmtool`.
 
 ### Running the csdmatter app
 
@@ -130,7 +130,7 @@ At the end, the results for all mass points are saved into a fits file.
 If you use the `run` method, the results table can be accessed via the `dmatter_fits` method. For example:
 
 ```python
-from ctaAnalysis.csdmatter import csdmatter
+from ctadmtool.csdmatter import csdmatter
 
 thistool = csdmatter()
 # After all the parameter initialization
