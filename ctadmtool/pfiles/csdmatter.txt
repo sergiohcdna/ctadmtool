@@ -1,0 +1,236 @@
+
+csdmatter
+=========
+
+Computes exclusion limits on annihilation cross-section or decay lifetime for a family of masses of dark matter particles.
+
+
+Synopsis
+--------
+
+This scripts computes the exclusion limits (95% confidence level) on annihilation cross-section or decay lifetime of dark matter particles. Given an observation, a dark-matter table model (GModelSpectralTable) is fitted using ctlike. If is specified by the user, csdmatter also computes the upper-limit on the flux and translated into an exclusion limit on the parameter of interest specified by the user (cross-section or lifetime of the dark matter candidate). This process is repeated for different masses (separated logarithmically) [a mass point] of the dark matter candidate. The script asks for the process used to compute the gamma-ray flux: 
+
+- Anna --> Annihilation
+- Decay
+
+In order to compute the normalization of the flux for the GModelSpectralTable, the user must pass the values of the astrophysical factor and the parameter of interest according to the process.
+
+
+For every mass point, th csdmatter app save:
+
+- MinEnergy ----> Value of minimum Energy (in GeV) to compute the spectrum
+- MaxEnergy ----> Value of maximum Energy (in GeV) to compute the spectrum
+- Mass ---------> Mass of the dark matter candidate (in GeV)
+- Flux ---------> Fitted Flux at reference energy. If the process is
+                  annihilation, the reference energy is half the mass of the
+                  dark matter candidate. If the process is decay, the reference
+                  energy is quarter the mass of the dark matter candidate.
+- ErrFlux ------> Error of the fitted flux at reference energy
+- E2Flux -------> Reference energy squared times the fitted flux (nuFnu)
+- E2ErrFlux ----> Error of nuFnu
+- LogL ---------> Value of the log-likelihood (best fit)
+- TS -----------> Value of test statistic (best fit)
+- UpperLimit ---> Upper limit to the integrated flux between MinEnergy and 95%
+                  of the available energy depending in the process.
+- ScaleFactor --> Ratio of the integrated theoretical flux and the upper limit
+
+if the process is annihilation, the results also include:
+
+- ULCrossSection ---> Exclusion limit on the annihilation cross-section.
+                      This is obtained via the scale factor times the
+                      reference cross-section
+- RefCrossSection --> Reference value used to compute the spectrum
+
+but, if the process is decay:
+
+- ULLifetime ---> Exclusion limit on the annihilation cross-section.
+                  This is obtained via the reference lifetime divided
+                  by the scale factor
+- RefLifetime --> Reference value used to compute the spectrum
+
+The collection of results for n mass points are saved into a fits file.
+
+Please note that the csdmatter app does not ask for XML observation model as input parameter. In fact, csdmatter app requires a fits table model (GModelSpectralTable)
+
+For more information refer to ctaAnalysis project or send an email to:
+skerzot@ciencias.unam.mx
+
+*******************************
+*                             *
+*    Judit, Miguel, Sergio    *
+*       The DMTaskForce       *
+*                             *
+*******************************
+
+Update: October, 2021
+
+Detailed description
+--------------------
+
+The csdmatter app takes an observation and replace the model with a dark-matter GModelSpectralTable model with normalization computed from the astrophysical factor and the reference value of the parameter of interest. Then, csdmatter fits the model to the input observation and extract the log-likelihood and test statistic of the best fit.
+
+To compute the exclusion limit, csdmatter uses a scale factor that results from the ratio of the of the integrated expected flux and the integrated upper-limit flux. The integrated fluxes are computed in the relevant energy range according to the process:
+
+- If the process is annihilation the energy range is [Emin, 0.95*dm-mass], where Emin is the minimum value of energy indicated by the user, and the maximum value is the 95% of the mass of the dark-matter candidate. 
+
+- If the process is decay the energy range is [Emin, 0.95*dm-mass/2], where Emin is the minimum value of energy indicated by the user, and the maximum values is the 95% of the available energy in the process.
+
+The selection of 95% is to avoid conflicts with possible cero values in the spectrum that results in not a number (nan) exceptions. Also, the reason to include the integrated flux is to take full advantage of the energy range where the observatory can detect a signal.
+
+The scale factor is used to compute the exclusion limit as follows:
+
+- If the process is annihilation, the exclusion limit on the cross-section is:
+
+        sigmav_UL = sigmav_ref * scale_factor
+
+where sigmav_ref is the reference value used to compute the spectra.
+
+- If the process is decay, the exclusion limit on the lifetime is:
+
+        lifetime_LL = lifetime_ref / scale_factor
+
+where lifetime_ref is the reference value of lifetime used to compute the spectra.
+
+General parameters
+------------------
+
+inobs [file]
+    Input event list, counts cube or observation definition XML file.
+
+srcname [string]
+    Name of the source in the source model XML file which should be used
+    for spectrum generation.
+
+dmspecfit [file]
+    Name of the GModelSpectralTable fits with dark matter model
+
+expcube [file]
+    Input exposure cube file.
+
+psfcube [file]
+    Input PSF cube file.
+
+edispcube [file]
+    Input energy dispersion cube file.
+
+bkgcube [file]
+    Input background cube file.
+
+caldb [string]
+    Calibration database.
+
+irf [string]
+    Instrumental response function.
+
+(edisp = no) [boolean]
+    Apply energy dispersion to response computation?
+
+mmin [real] <100->
+    Minimum value of dark-matter mass in GeV
+
+mmax [real] <-1.e+5>
+    Maximum value of dark-matter mass in GeV
+
+mnumpoints [integer] <1-100>
+    Number of dark-matter mass bins to perform the analysis. Note that the mass points are separated logarithmically
+
+process [string] <ANNA|DECAY>
+    Dark-matter interaction
+
+channel [string] <b|Mu|Tau|t|W|Z>
+    Available channel to compute gamma-ray flux from process. Calculations are performed using interpolation of PPPC4DMID tables: http://www.marcocirelli.net/PPPC4DMID.html
+
+ewcorrection [boolean]
+    If the spectrum has EW corrections. This allows to read properly the GModelSpectralTable model and extract the channels.
+
+eblmodel [string] <franceschini|franceschini2017|kneiske|finke|dominguez|dominguez-upper|dominguez-lower|inuoe|inuoe-low-pop3|inuoe-up-pop3|gilmore|gilmore-fixed>
+    EBL model to compute attenuation of gamma-ray flux
+
+redshift [real] <0 - 2.0>
+    Redshift of the source. Used to compute gamma-ray flux
+
+logsigmav [real] <-38.0 - -5.0>
+    Logarithm of annihilation cross-section (in cm**3/s)
+
+logastfactor [real]
+    Logarithm of astrophysical j factor (in GeV**2/cm**5)
+
+loglifetime [real] <10.0 - 50.0>
+    Logarithm of decay lifetime (in s)
+
+logdfactor [real]
+    Logarithm of astrophysical decay d factor (in GeV/cm**2)
+
+emin [real] <30->
+    Start value for dark matter flux in GeV
+
+emax [real] <-1.e+5>
+    Stop value for dark matter flux in GeV
+
+modtype [string] <PointSource|DiffuseSource> 
+    Select the Model type specifier to generate GModels
+
+ra [real] <-360 - 360>
+    Right Ascension in degrees
+
+dec [real] <-90 - 90>
+    Declination in degrees
+
+map_fits [string]
+    Spatial Template to describe gamma-ray emission
+
+outfile [file]
+    Output spectrum FITS file.
+
+(statistic = DEFAULT) <DEFAULT|CSTAT|WSTAT|CHI2> [string]
+    Optimization statistic. DEFAULT uses the default statistic for all
+    observations, which is CSTAT or the statistic specified in the
+    observation definition XML file. CSTAT uses the C statistic for
+    all observations, WSTAT uses the W statistic for all On/Off
+    observations, and CHI2 uses the Chi squared statistic for all
+    binned or stacked observations.
+
+(calc_ulim = yes) [boolean]
+    Compute upper limit for each spectral point?
+
+
+Standard parameters
+-------------------
+
+(nthreads = 0) [integer]
+    Number of parallel processes (0=use all available CPUs).
+
+(publish = no) [boolean]
+    Specifies whether the spectrum should be published on VO Hub.
+
+(chatter = 2) [integer]
+    Verbosity of the executable:
+     chatter = 0: no information will be logged
+
+     chatter = 1: only errors will be logged
+
+     chatter = 2: errors and actions will be logged
+
+     chatter = 3: report about the task execution
+
+     chatter = 4: detailed report about the task execution
+
+(clobber = yes) [boolean]
+    Specifies whether an existing source spectrum output file should be
+    overwritten.
+
+(debug = no) [boolean]
+    Enables debug mode. In debug mode the executable will dump any log file
+    output to the console.
+
+(mode = ql) [string]
+    Mode of automatic parameters (default is ql, i.e. "query and learn").
+
+(logfile = csdmatter.log) [filename]
+    Log filename.
+
+
+Related tools or scripts
+------------------------
+
+ctlike, ctulimit, csspec
