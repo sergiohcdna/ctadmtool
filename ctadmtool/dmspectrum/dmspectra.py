@@ -4,6 +4,8 @@ from ebltable.tau_from_model import OptDepth
 from ctadmtool.tools.misc import ValidnpArray , ValidString , ValidValue
 
 import os
+import warnings
+warnings.filterwarnings('error', category=RuntimeWarning)
 
 #   List of allowed channels for annihilation of DM
 #   from PPPC4DMID tables
@@ -35,7 +37,6 @@ ALLOWED_PROCESSES = ('anna', 'decay')
 @ValidValue("_z", min_val=0)
 @ValidString("_channel", empty_allowed=False, options=ALLOWED_CHANNELS)
 @ValidValue("_mass", min_val=5, max_val=1.e+5)
-@ValidValue("_emin", min_val=5.e-9)
 @ValidValue("_emax", max_val=1.e+5)
 # @ValidnpArray("_energy", min_val=5.e-9, max_val=1.e+5)
 class dmspectrum() :
@@ -71,7 +72,15 @@ class dmspectrum() :
         epoints : Number of points in energy spectrum
         """
 
-        self._emin     = emin
+        x = emin/dm_mass
+        if x < 1.e-9 :
+            val = 1.e-9 * dm_mass
+            msg = 'Min energy is below allowed value: {:.2e}'.format(val)
+            warnings.warn(msg, Warning)
+            self._emin = val
+        else :
+            self._emin     = emin
+
         self._emax     = emax
         self._channel  = channel
         self._z        = z
@@ -156,9 +165,11 @@ class dmspectrum() :
 
         Additionally, check if the values is valid (>5.e-9)
         """
-        if e_min < 5.e-9 :
-            msg = 'Energy {0} GeV is lower than the value allowed'.format(e_min)
-            raise ValueError(msg)
+        val = 1.e-9*self._mass
+        if e_min < val :
+            msg = 'Min energy is below allowed value: {:.2e}'.format(val)
+            warnings.warn(msg, Warning)
+            e_min = val
 
         # Set energy
         self._emin = e_min
@@ -190,9 +201,10 @@ class dmspectrum() :
 
         Additionally, check if the values is valid (>5.e-9)
         """
-        if e_max > 1.0e+5 :
-            msg = 'Energy {0} GeV is greater than value allowed'.format(e_max)
-            raise ValueError(msg)
+        if e_max > 1.e+5 :
+            msg = 'Max energy is below allowed value: 1.e+5 GeV'
+            warnings.warn(msg, Warning)
+            e_max = 1.e+5
 
         # Set energy
         self._emax = e_max
@@ -229,13 +241,16 @@ class dmspectrum() :
         emin, emax, epoints = e_vals
 
         #   Check if emin and emax are valid
-        if emin < 5.e-9 :
-            raise ValueError(('Energy {0} '.format(emin) +
-                'is lower than the allowed value 5.e-9'))
+        val = 1.e-9*self._mass
+        if emin < val :
+            msg = 'Min energy is below allowed value: {:.2e}'.format(val)
+            warnings.warn(msg, Warning)
+            emin = val
 
         if emax > 1.e+5 :
-            raise ValueError(('Energy {0} '.format(emax) +
-                'is greater than the allowed value 1.e+5'))
+            msg = 'Max energy is below allowed value: 1.e+5 GeV'
+            warnings.warn(msg, Warning)
+            emax = 1.e+5
 
         #   Create energy array
         energies = self._earray(emin, emax, epoints)
@@ -431,6 +446,12 @@ class dmspectrum() :
         #   Set hasEW
         self._ew = has_EW
 
+        #   Update the tuple of allowed channels
+        if has_EW :
+            self._allowed_channels = ALLOWED_CHANNELS
+        else :
+            self._allowed_channels = ALLOWED_CHANNELSNOEW
+
         #   Return
         return
 
@@ -496,71 +517,6 @@ class dmspectrum() :
         return dminterp
 
     @staticmethod
-    def _decayinterp(dm_channel, has_EW) :
-        """
-        Create DM interpolating function using tables
-        from PPPC4DMID project.
-
-        Interpolation is computed using interp2d from scipy.
-        By default, only using linear interpolation
-
-        Parameters
-        ----------
-            dm_channel : Channel
-            has_EW     : using EW corrections (True)
-                         or not (False)
-        """
-
-        #   Name of file to read data
-        BASEDIR = os.path.abspath(os.path.join(os.path.dirname(__file__),'..'))
-        data_path = os.path.join(BASEDIR, 'data/')
-
-        fname = 'AtProduction'
-
-        if not has_EW :
-
-            fname += 'NoEW'
-
-        fname += '_gammas.dat'
-        fname  = os.path.join(data_path, fname)
-
-        # print( 'Reading data from {:s}'.format( fname ) )
-
-        #   Loading data
-        data = np.genfromtxt(fname, names=True)
-
-        #   Get unique values of masses and logxvals
-        masses   = np.unique(data['mDM'])
-        logxvals = np.unique(data['Log10x'])
-
-        #   Matirx to extract data
-        dndlogx  = np.zeros((logxvals.size, masses.size))
-
-        #   Filling dndlogx matrix
-        for mindex, mass in enumerate(masses) :
-
-            mass    = int(mass)
-            indices = np.where(data['mDM'] == mass)
-            phis    = data[dm_channel][indices]
-
-            for index , phi in enumerate(phis) :
-
-                logxval                = logxvals[index]
-                dndlogx[index][mindex] = phi
-
-        #   Now, the logxvals are going from 0 to 0.5
-        #   I need to apply the rule x --> x/2
-        logxvals -= np.log10(2.)
-
-        #   Interpolating function using interp2d
-        #   By default, I am only using linear interpolation
-        dminterp = interp2d(masses, logxvals, dndlogx,
-            kind='linear', fill_value=0.0)
-
-        #   Return
-        return dminterp
-
-    @staticmethod
     def _ebl_atten(z, eblmodel, egev) :
         """
         Compute EBL attenuation, using ebl-table project
@@ -577,18 +533,14 @@ class dmspectrum() :
             atten    : attenuation
         """
 
-        #   Check if redshift is greater than 1.e-3
-        #   if not, then atten = 1
-
-        if z >= 1.e-3 :
-
+        try:
             #   Initiate instance of OptDepth
             tau   = OptDepth.readmodel(eblmodel)
             atten = np.exp(-1. * tau.opt_depth(z, egev*1.e-3))
 
-        else :
-
-            atten = 1.0
+        except RuntimeWarning:
+            print('z has a lower value than allowed')
+            atten = 1.0            
 
         #   Return
         return atten
@@ -615,11 +567,12 @@ class dmspectrum() :
         elif self._process == 'decay' :
 
             #   Get interpolator
-            dm_interp = self._decayinterp(self._channel, self._ew)
+            # dm_interp = self._decayinterp(self._channel, self._ew)
+            dm_interp  = self._dminterp(self._channel, self._ew)
 
             #   Compute number of photons at energy self._energy
-            xval    = self._energy / self._mass
-            dndlogx = dm_interp(self._mass, np.log10(xval))
+            xval    = self._energy / (self._mass/2.)
+            dndlogx = dm_interp(self._mass/2., np.log10(xval))
             dndlogx = dndlogx.flatten()
             dnde    = dndlogx / self._energy / np.log(10)
 
