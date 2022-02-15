@@ -333,10 +333,10 @@ class csdmatter(ctools.csobservation) :
         #   is in extremely flat
         self._log_header3(gammalib.EXPLICIT, 'New DM-spectral model')
         minval  = 0.0
-        maxval  = 1.0e+60
+        maxval  = 1.0e+10
 
         #   Number of energy points used to compute the gamma-ray flux
-        epoints = 100
+        epoints = 500
 
         #   Model type
         modtype  = self['modtype'].string()
@@ -375,9 +375,10 @@ class csdmatter(ctools.csobservation) :
         #   The good part of this is I don't need
         #   a lot of mass points to generate the table
         #   This should speed up the analysis(?)
-        delta_m  = 0.1
+        delta_m  = 0.2
         thismmin = 0.0
         thismmax = 0.0
+        logmmax  = math.log10(self['mmax'].real())
 
         # number of points between mmin and mmax in the table-model
         n = 50
@@ -389,7 +390,7 @@ class csdmatter(ctools.csobservation) :
         else :
             thismmin = math.ceil(10**(math.log10(dmmass)-0.5*delta_m))
             thismmin = float(thismmin)
-            if dmmass < 8.9e+4 :
+            if dmmass < math.floor(10**(logmmax-0.5*delta_m)) :
                 thismmax = math.ceil(10**(math.log10(dmmass)+0.5*delta_m))
                 thismmax = float(thismmax)
             else :
@@ -560,6 +561,9 @@ class csdmatter(ctools.csobservation) :
         theoflux  = thisdmmodel.spectral().flux(gemin, gemax)
         if theoflux == 0.0 :
             theoflux = -1.0
+
+        msg = 'Expected flux is: {:.3e} ph/cm**2/s'.format(theoflux)
+        self._log_string(gammalib.EXPLICIT,msg)
 
         #   Header
         self._log_header1(gammalib.TERSE, 'Fitting DM Model')

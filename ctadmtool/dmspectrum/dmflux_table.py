@@ -465,7 +465,10 @@ class dmtable() :
         """
 
         #   Check that emin and emax are ok
-        if evals[0] < 5.e-9 or evals[1] > 1.e+5 :
+        #   Note, that I set the minimum to 500 MeV
+        #   There is no meaning to go to lower energies
+        #   In the case of CTA
+        if evals[0] < 5.0e-3 or evals[1] > 1.e+5 :
             raise ValueError('\nParameters outside of range')
 
         #   Update properties
@@ -585,9 +588,9 @@ class dmtable() :
         #   is not neccessary. You can change the normalization
         #   of the GModelSpectralTable later during simulation
         #   or analysis steps via GModelSpectralTable methods
-        norm = 0.0
-        minval    = 0.0
-        maxval    = 1.0e+60
+        norm   = 0.0
+        minval = 0.0
+        maxval = 1.0e+20
 
         if self._dminterp.process == 'anna' :
             norm = self._norm_anna(self._sigmav, self._mmin,
@@ -1119,7 +1122,8 @@ class dmtable_ch() :
         """
 
         #   Check that emin and emax are ok
-        if evals[0] < 5.e-9 or evals[1] > 1.e+5 :
+        #   I set the minimum to 500 MeV
+        if evals[0] < 5.0e-3 or evals[1] > 1.e+5 :
             raise ValueError('\nParameters outside of range')
 
         #   Update properties
@@ -1223,7 +1227,7 @@ class dmtable_ch() :
         #   or analysis steps via GModelSpectralTable methods
         norm   = 0.0
         minval = 0.0
-        maxval = 1.0e+60
+        maxval = 1.0e+20
 
         if self._dminterp.process == 'anna' :
             norm = self._norm_anna(self._sigmav, self._mmin,
@@ -1233,10 +1237,9 @@ class dmtable_ch() :
 
         #   Tuning the ModelSpectralTable
         #   I set the interpolation method of masses to logarithmic
-        #   Mass and channel are fixed.
-        #   Particularly, it's mandatory that channel parameter is fixed
+        #   Mass is a fixed parameter
         model = gammalib.GModelSpectralTable(ebins, pars, spectra)
-        model.table_par('Mass').method(0)
+        model.table_par('Mass').method(1)
         model['Mass'].scale(1.)
         model['Mass'].fix()
         model['Normalization'].value(norm)
