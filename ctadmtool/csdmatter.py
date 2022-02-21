@@ -333,7 +333,7 @@ class csdmatter(ctools.csobservation) :
         #   is in extremely flat
         self._log_header3(gammalib.EXPLICIT, 'New DM-spectral model')
         minval  = 0.0
-        maxval  = 1.0e+10
+        maxval  = 1.0e+20
 
         #   Number of energy points used to compute the gamma-ray flux
         epoints = 500
@@ -384,7 +384,7 @@ class csdmatter(ctools.csobservation) :
         n = 50
 
         if self._onoff_mode :
-            thismmin = math.ceil(10**(math.log10(dmmass)-delta_m))
+            thismmin = math.ceil(10**(math.log10(dmmass)-0.5*delta_m))
             thismmin = float(thismmin)
             thismmax = dmmass
         else :
@@ -544,9 +544,13 @@ class csdmatter(ctools.csobservation) :
         if not obssim.models().is_empty():
             obssim.models().clear()
 
+        self._log_header1(gammalib.TERSE, 'Check Observations')
+        for obs in obssim:
+            self._log_string(gammalib.EXPLICIT, str(obs))
+
         #   Append models to the observation container
         #   This should work also for OnOff observations
-        if self._onoff_mode :
+        if self._onoff_mode and self['statistic'].string() == 'WSTAT' :
             obssim.models().append(thisdmmodel)
         else :
             obssim.models().append(thisdmmodel)
@@ -625,14 +629,22 @@ class csdmatter(ctools.csobservation) :
         result['logL'] = logL0
 
         #   Write models results
+        self._log_header1(gammalib.TERSE, 'Results from fitting: Optimization')
+        self._log_string(gammalib.EXPLICIT, str(like.opt()))
+
         self._log_header1(gammalib.TERSE, 'Results from fitting')
         self._log_string(gammalib.EXPLICIT, str(like.obs().models()))
 
+        self._log_header1(gammalib.TERSE, 'Results from fitting: Observation')
+        for obs in like.obs():
+            self._log_string(gammalib.EXPLICIT, str(obs))
         #   Continue only if logL0 is different from zero
         if logL0 != 0.0 :
             #   Extract TS value
             ts           = model.ts()
             result['TS'] = ts
+
+            self._log_header2(gammalib.TERSE, 'TS: {:.3e}'.format(ts))
 
             #   Calculation of upper-limit via ctulimit
             ulimit_value = -1.0
@@ -647,6 +659,7 @@ class csdmatter(ctools.csobservation) :
                 ulimit['eref']      = geref.TeV()
                 ulimit['emin']      = gemin.TeV()
                 ulimit['emax']      = gemax.TeV()
+                ulimit['edisp']     = self['edisp'].boolean()
                 ulimit['statistic'] = self['statistic'].string()
 
                 #   Set chatter
@@ -684,13 +697,16 @@ class csdmatter(ctools.csobservation) :
                 else :
                     e_flux    = 0.0
 
-                # If a Diffuse map, then compute corresponding weight
-                if model.spatial().classname() == 'GModelSpatialDiffuseMap' :
-                    region       = gammalib.GSkyRegionCircle(0.0, 0.0, 180.0)
-                    model.spatial().mc_cone(region)
-                    norm         = model.spatial().spectrum().eval(geref)
-                    fitted_flux *= norm
-                    e_flux      *= norm
+                # I confused map and cube spatial models
+                # The following lines are only valid if you are using cube maps
+                # At this moment, We are only using diffuse maps
+                # If a Diffuse cube, then compute corresponding weight
+                # if model.spatial().classname() == 'GModelSpatialDiffuseCube' :
+                #     region       = gammalib.GSkyRegionCircle(0.0, 0.0, 180.0)
+                #     model.spatial().mc_cone(region)
+                #     norm         = model.spatial().spectrum().eval(geref)
+                #     fitted_flux *= norm
+                #     e_flux      *= norm
 
                 #   Save fitted flux
                 result['flux']     = fitted_flux/gammalib.MeV2erg
