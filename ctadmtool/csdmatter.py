@@ -481,14 +481,19 @@ class csdmatter(ctools.csobservation) :
         Gmodel for bkg
         """
 
-        #   spectral correction
         genergy = gammalib.GEnergy(1, 'TeV')
         spectral = gammalib.GModelSpectralPlaw(1, 0, genergy)
-        
-        # create background model
-        bkgmodel = gammalib.GCTAModelIrfBackground(spectral)
-        bkgmodel.name('Background')
-        bkgmodel.instruments('CTA')
+
+        #   spectral correction
+        if self._binned_mode:
+            bkgmodel = gammalib.GCTAModelCubeBackground(spectral)
+            bkgmodel.name('BackgroundModel')
+            bkgmodel.instruments('CTA,HESS,MAGIC,VERITAS')
+        else:            
+            # create background model
+            bkgmodel = gammalib.GCTAModelIrfBackground(spectral)
+            bkgmodel.name('Background')
+            bkgmodel.instruments('CTA')
         
         return bkgmodel
 
