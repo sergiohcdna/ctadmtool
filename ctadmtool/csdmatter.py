@@ -633,6 +633,15 @@ class csdmatter(ctools.csobservation) :
 
         result['logL'] = logL0
 
+        for fitmodel in like.obs().models():
+            for mpar in fitmodel:
+                parentry = '{}-{}'.format(fitmodel.name(),mpar.name())
+                parerror = '{}_err'.format(parentry)
+                parfree  = '{}_isfree'.format(parentry)
+                result[parentry] = mpar.value()
+                result[parerror] = mpar.error()
+                result[parfree]  = int(mpar.is_free())
+
         #   Write models results
         self._log_header1(gammalib.TERSE, 'Results from fitting: Optimization')
         self._log_string(gammalib.EXPLICIT, str(like.opt()))
@@ -794,6 +803,11 @@ class csdmatter(ctools.csobservation) :
         """
 
         #   Create columns (><'! Now, added for n mass points')
+
+        default_keys = ['e_min','e_max','mass',
+          'flux','flux_err','e2flux','e2flux_err',
+          'logL','TS','ulimit','sc_factor']
+
         nrows = len(self._masses)
 
         e_min        = gammalib.GFitsTableDoubleCol('MinEnergy', nrows)
@@ -827,11 +841,13 @@ class csdmatter(ctools.csobservation) :
             paroi_ref = gammalib.GFitsTableDoubleCol('RefCrossSection', nrows)
             paroi_lim.unit('cm3/s')
             paroi_ref.unit('cm3/s')
+            default_keys.extend(['sigma_lim','sigma_ref'])
         elif self['process'].string() == 'DECAY' :
             paroi_lim = gammalib.GFitsTableDoubleCol('ULLifetime', nrows)
             paroi_ref = gammalib.GFitsTableDoubleCol('RefLifetime', nrows)
             paroi_lim.unit('s')
             paroi_ref.unit('s')
+            default_keys.extend(['lifetime_lim','lifetime_ref'])
 
         #   Fill fits
         for i, result in enumerate(results) :
@@ -852,6 +868,9 @@ class csdmatter(ctools.csobservation) :
             elif self['process'].string() == 'DECAY' :
                 paroi_lim[i]   = result['lifetime_lim']
                 paroi_ref[i]   = result['lifetime_ref']
+
+        extra_keys = [key for key in results[0].keys() 
+            if key not in default_keys]
 
         #   Initialise FITS Table with extension "DMATTER"
         table = gammalib.GFitsBinTable(nrows)
@@ -876,6 +895,11 @@ class csdmatter(ctools.csobservation) :
         table.append(paroi_lim)
         table.append(paroi_ref)
 
+        for key in extra_keys:
+            thiscol = gammalib.GFitsTableDoubleCol(key, nrows)
+            for i, result in enumerate(results):
+                thiscol[i] = result[key]
+            table.append(thiscol)
         #   Create the FITS file now
         self._fits = gammalib.GFits()
         self._fits.append(table)
