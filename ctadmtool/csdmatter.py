@@ -31,7 +31,7 @@ from ctadmtool.dmspectrum.dmflux_table import dmtable_ch
 
 import os
 import math
-
+import numpy as np
 #====================================================================#
 #                                                                    #
 #   First, add a path to PFILES environment path to be able to load  #
@@ -180,9 +180,8 @@ class csdmatter(ctools.csobservation) :
         #   Query other parameters
         self['edisp'].boolean()
         self['calc_ulim'].boolean()
-        #   I don't nedd this for now
-        # self['fix_bkg'].boolean()
-        # self['fix_srcs'].boolean()
+        self['fix_bkg'].boolean()
+        self['fix_srcs'].boolean()
 
         #   Query all dark-matter related parameters
         self['mmin'].real()
@@ -290,25 +289,6 @@ class csdmatter(ctools.csobservation) :
         #   Return
         return masses
 
-    def _get_channel_key(self):
-
-        #   channel from input parameters
-        channel = self['channel'].string()
-        ckey    = 0
-
-        # get number of channel in PPPC4DMID tables
-        # according to EWcorrections
-        if self['ewcorrections'].boolean() :
-            for key, value in channels.items():
-                 if channel.upper() == value.upper():
-                     ckey = key
-        else :
-            for key, value in channelsNoEw.items():
-                 if channel.upper() == value.upper():
-                     ckey = key
-        # Return
-        return ckey
-
     def _gen_model(self, i) :
         """
         in-fly Creation of DM model for annihilation or decay
@@ -346,7 +326,6 @@ class csdmatter(ctools.csobservation) :
 
         #   Create spectral container using GModelSpectralTable
         #   and setup the mass, channel and normalization of the model
-        ch_number = self._get_channel_key()
         channel   = self['channel'].string()
         dmmass    = self._masses[i]
         fluxnorm  = 0.0
@@ -487,13 +466,21 @@ class csdmatter(ctools.csobservation) :
         #   spectral correction
         if self._binned_mode:
             bkgmodel = gammalib.GCTAModelCubeBackground(spectral)
-            bkgmodel.name('BackgroundModel')
             bkgmodel.instruments('CTA,HESS,MAGIC,VERITAS')
-        else:            
-            # create background model
+            bkgmodel.name('CTABackgroundModel')
+        elif self._onoff_mode:
             bkgmodel = gammalib.GCTAModelIrfBackground(spectral)
-            bkgmodel.name('Background')
+            bkgmodel.name('CTABackgroundModel')
+            bkgmodel.instruments('CTAOnOff')
+        else:            
+            bkgmodel = gammalib.GCTAModelIrfBackground(spectral)
+            bkgmodel.name('CTABackgroundModel')
             bkgmodel.instruments('CTA')
+
+        #   Fix parameters if fix_bkg is true
+        if self['fix_bkg'].boolean():
+            for par in bkgmodel:
+                par.fix()
         
         return bkgmodel
 
@@ -538,14 +525,15 @@ class csdmatter(ctools.csobservation) :
         #   Making a deep copy of the observation
         obssim = self.obs().copy()
 
-        self._log_header1(gammalib.TERSE, 'Set or replace by Dark matter model')
+        self._log_header1(gammalib.TERSE, 'Set the Dark matter model')
 
         for model in obssim.models() :
             # if model.classname() != 'GCTAModelIrfBackground' :
             obssim.models().remove(model.name())
 
         #   Make sure that the models container is empty
-        #   I only want to test the dm model
+        #   I want to add the DM component
+        #   And also add the models for other sources
         if not obssim.models().is_empty():
             obssim.models().clear()
 
@@ -560,6 +548,20 @@ class csdmatter(ctools.csobservation) :
         else :
             obssim.models().append(thisdmmodel)
             obssim.models().append(thisbkgmodel)
+
+        #   Add the models for the other components in inmodel:
+        inmodel = self['inmodel'].filename()
+        if inmodel and not (inmodel=='NONE'):
+            srcmodels = gammalib.GModels(inmodel)
+            msg = 'Append models for additional sources'
+            self._log_string(gammalib.EXPLICIT,msg)
+            for model in srcmodels:
+                if self['fix_srcs'].boolean():
+                    msg = 'Fixing parameters of additional sources'
+                    self._log_string(gammalib.EXPLICIT,msg)
+                    for par in model:
+                        par.fix()
+                obssim.models().append(model)
 
         #   Show mymodels in logfile, just to check that everything is Ok!
         self._log_string(gammalib.EXPLICIT , str(obssim.models()))
@@ -658,7 +660,31 @@ class csdmatter(ctools.csobservation) :
             ts           = model.ts()
             result['TS'] = ts
 
+            #   Get Covariance Matrix
+            covariance = like.obs().function().covariance()
+
+            #   Convert Covariance Matrix to numpy array
+            nrows  = covariance.rows()
+            ncols  = covariance.columns()
+            np_cov = np.zeros((nrows,ncols))
+
+            for i in range(ncols):
+                for j in range(nrows):
+                    val = covariance[j,i]
+                    if val != 0:
+                        np_cov[j,i] = val
+
+            result['covariance'] = np_cov
+            parnames = []
+            for model in like.obs().models():
+                mname = model.name()
+                for par in model:
+                    parnames.append('{} ({})'.format(par.name(),mname))
+            result['parnames'] = parnames
+
             self._log_header2(gammalib.TERSE, 'TS: {:.3e}'.format(ts))
+            self._log_header2(gammalib.TERSE, 'Covariance Matrix:')
+            self._log_string(gammalib.EXPLICIT,str(covariance))
 
             #   Calculation of upper-limit via ctulimit
             ulimit_value = -1.0
@@ -806,7 +832,7 @@ class csdmatter(ctools.csobservation) :
 
         default_keys = ['e_min','e_max','mass',
           'flux','flux_err','e2flux','e2flux_err',
-          'logL','TS','ulimit','sc_factor']
+          'logL','TS','ulimit','sc_factor','covariance','parnames']
 
         nrows = len(self._masses)
 
@@ -895,14 +921,53 @@ class csdmatter(ctools.csobservation) :
         table.append(paroi_lim)
         table.append(paroi_ref)
 
+        #   Create table for covariance matrix
+        thisresult = results[0]
+        parnames = thisresult['parnames']
+        size     = len(parnames)
+        covmat   = gammalib.GFitsBinTable()
+        par      = gammalib.GFitsTableStringCol('Paramaters',1,50,size)
+        covmat.append(par)
+
+        #   Fill columns
+        for i in range(size):
+            par[0,i] = parnames[i]
+
+        for i,result in enumerate(results):
+            covar = result['covariance']
+            colnm = 'Covariance (Mass {})'.format(i)
+            cov   = gammalib.GFitsTableDoubleCol(colnm,1,size*size)
+
+            for nrow in range(size):
+                for ncol in range(size):
+                    cov[0,nrow*size+ncol] = covar[nrow,ncol]
+
+            #   Set dimension of covmatrix
+            cov.dim([size,size])
+
+            #   Append columns to covariance table
+            covmat.append(cov)
+
+        #   Set Extension name
+        covmat.extname("Covariance Matrix")
+
+
+        #   Create table for the model parameters:
+        parvalues = gammalib.GFitsBinTable(nrows)
         for key in extra_keys:
             thiscol = gammalib.GFitsTableDoubleCol(key, nrows)
             for i, result in enumerate(results):
                 thiscol[i] = result[key]
-            table.append(thiscol)
+            parvalues.append(thiscol)
+
+        #   Set extension name
+        parvalues.extname('Fitted parameters')
+
         #   Create the FITS file now
         self._fits = gammalib.GFits()
         self._fits.append(table)
+        self._fits.append(parvalues)
+        self._fits.append(covmat)
 
         #   Return
         return
