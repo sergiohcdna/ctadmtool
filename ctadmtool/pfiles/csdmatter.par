@@ -18,6 +18,7 @@
 # Input and output parameters
 #============================
 inobs,     f, a, events.fits,,, "Input event list, counts cube, or observation definition XML file"
+inmodel,   f, a, NONE,,, "XML model definitions for other objects"
 srcname,   s, a, Perseus,,, "Source name"
 expcube,   f, a, NONE,,, "Input exposure cube file"
 psfcube,   f, a, NONE,,, "Input PSF cube file"
@@ -52,8 +53,8 @@ map_fits,      f, a, PerseusMap.fits,,, "Spatial Template to describe gamma-ray 
 #dmspecfits,    f, a, dmspectrum.fits,,, "Fits GModelSpectralTable"
 statistic,     s, h, DEFAULT,DEFAULT|CSTAT|WSTAT|CHI2,, "Optimization statistic"
 calc_ulim,     b, h, yes,,, "Compute upper limit for each mass point"
-#fix_srcs,      b, h, yes,,, "Fix other skymodel parameters"
-#fix_bkg,       b, h, no,,, "Fix background parameters"
+fix_srcs,      b, h, no,,, "Fix other skymodel parameters"
+fix_bkg,       b, h, no,,, "Fix background parameters"
 #dll_sigstep,   r, h, 0.0,0.0,100.0, "Step size in standard deviations for log-like profiles"
 #dll_sigmax,    r, h, 5.0,1.0,100.0, "Maximum number of standard deviations for log-like profiles"
 #dll_freenodes, b, h, no,,, "Free nodes not being fit when computing log-like profiles"
