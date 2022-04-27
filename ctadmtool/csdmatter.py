@@ -58,6 +58,9 @@ channels = {0:'eL', 1:'eR', 2:'e', 3:'MuL', 4:'MuR',
 channelsNoEw = {0:'e', 1:'Mu', 2:'Tau', 3:'q',
     4:'c', 5:'b', 6:'t', 7:'W', 8:'Z', 9:'g'}
 
+bkgclasses = ['GCTAModelAeffBackground',
+    'GCTAModelBackground','GCTAModelCubeBackground',
+    'GCTAModelIrfBackground','GCTAModelRadialAcceptance']
 
 # =============== #
 # csdmatter class #
@@ -550,7 +553,11 @@ class csdmatter(ctools.csobservation) :
             obssim.models().append(thisbkgmodel)
 
         #   Add the models for the other components in inmodel:
-        inmodel = self['inmodel'].filename()
+        inmodel = ''
+        try:
+            inmodel = self['inmodel'].filename()
+        except ValueError:
+            inmodel = ''
         if inmodel and not (inmodel=='NONE'):
             srcmodels = gammalib.GModels(inmodel)
             msg = 'Append models for additional sources'
@@ -635,14 +642,35 @@ class csdmatter(ctools.csobservation) :
 
         result['logL'] = logL0
 
-        for fitmodel in like.obs().models():
-            for mpar in fitmodel:
-                parentry = '{}-{}'.format(fitmodel.name(),mpar.name())
-                parerror = '{}_err'.format(parentry)
-                parfree  = '{}_isfree'.format(parentry)
-                result[parentry] = mpar.value()
-                result[parerror] = mpar.error()
-                result[parfree]  = int(mpar.is_free())
+        for model in like.obs().models():
+            mname = model.name()
+
+            if model.classname() not in bkgclasses:
+                spectral   = model.spectral()
+                spatial    = model.spatial()
+                components = [spectral,spatial]
+
+                for component in components:
+                    cname = component.classname()
+
+                    for par in component:
+                        parentry = '{}-{}-{}'.format(mname,cname,par.name())
+                        parerror = '{}_err'.format(parentry)
+                        parfree  = '{}_isfree'.format(parentry)
+                        result[parentry] = par.value()
+                        result[parerror] = par.error()
+                        result[parfree]  = int(par.is_free())
+            else:
+                spectral = model.spectral()
+                cname    = spectral.classname()
+
+                for par in spectral:
+                    parentry = '{}-{}-{}'.format(mname,cname,par.name())
+                    parerror = '{}_err'.format(parentry)
+                    parfree  = '{}_isfree'.format(parentry)
+                    result[parentry] = par.value()
+                    result[parerror] = par.error()
+                    result[parfree]  = int(par.is_free())        
 
         #   Write models results
         self._log_header1(gammalib.TERSE, 'Results from fitting: Optimization')
@@ -678,8 +706,25 @@ class csdmatter(ctools.csobservation) :
             parnames = []
             for model in like.obs().models():
                 mname = model.name()
-                for par in model:
-                    parnames.append('{} ({})'.format(par.name(),mname))
+                if model.classname() not in bkgclasses:
+                    spectral   = model.spectral()
+                    spatial    = model.spatial()
+                    components = [spectral,spatial]
+
+                    for component in components:
+                        cname = component.classname()
+
+                        for par in component:
+                            msg = '{} ({}-{})'.format(par.name(),mname,cname)
+                            parnames.append(msg)
+                else:
+                    spectral = model.spectral()
+                    cname    = spectral.classname()
+
+                    for par in spectral:
+                        msg = '{} ({}-{})'.format(par.name(),mname,cname)
+                        parnames.append(msg)
+
             result['parnames'] = parnames
 
             self._log_header2(gammalib.TERSE, 'TS: {:.3e}'.format(ts))
@@ -926,12 +971,13 @@ class csdmatter(ctools.csobservation) :
         parnames = thisresult['parnames']
         size     = len(parnames)
         covmat   = gammalib.GFitsBinTable()
-        par      = gammalib.GFitsTableStringCol('Paramaters',1,50,size)
-        covmat.append(par)
+        par      = gammalib.GFitsTableStringCol('Parameters',1,50,size)
 
         #   Fill columns
         for i in range(size):
             par[0,i] = parnames[i]
+
+        covmat.append(par)
 
         for i,result in enumerate(results):
             covar = result['covariance']
