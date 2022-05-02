@@ -737,9 +737,19 @@ class csdmatter(ctools.csobservation) :
             if self['calc_ulim'].boolean() :
                 #   Print to log
                 self._log_header3(gammalib.EXPLICIT,'Computing Upper Limit')
+                self._log_header2(gammalib.TERSE, 'Fixing parameters')
+
+                for model in like.obs().models():
+                    for par in model:
+                        par.fix()
+
+                msg = 'Check that DM normalization is free'
+                self._log_header2(gammalib.TERSE, msg)
+                srcname = self['srcname'].string()
+                like.obs().models()[srcname].spectral()['Normalization'].free()
 
                 #   Instance for ctulimit
-                ulimit              = ctools.ctulimit(obssim)
+                ulimit              = ctools.ctulimit(like.obs())
                 ulimit['srcname']   = self['srcname'].string()
                 ulimit['eref']      = geref.TeV()
                 ulimit['emin']      = gemin.TeV()
