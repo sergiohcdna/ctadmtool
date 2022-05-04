@@ -545,12 +545,7 @@ class csdmatter(ctools.csobservation) :
             self._log_string(gammalib.EXPLICIT, str(obs))
 
         #   Append models to the observation container
-        #   This should work also for OnOff observations
-        if self._onoff_mode and self['statistic'].string() == 'WSTAT' :
-            obssim.models().append(thisdmmodel)
-        else :
-            obssim.models().append(thisdmmodel)
-            obssim.models().append(thisbkgmodel)
+        obssim.models().append(thisdmmodel)
 
         #   Add the models for the other components in inmodel:
         inmodel = ''
@@ -569,6 +564,13 @@ class csdmatter(ctools.csobservation) :
                     for par in model:
                         par.fix()
                 obssim.models().append(model)
+
+        #   This should work also for OnOff observations
+        if self._onoff_mode and self['statistic'].string() == 'WSTAT' :
+            self._log_string(gammalib.EXPLICIT,'No bkg model')
+        else :
+            self._log_string(gammalib.EXPLICIT,'Append BKG model')
+            obssim.models().append(thisbkgmodel)
 
         #   Show mymodels in logfile, just to check that everything is Ok!
         self._log_string(gammalib.EXPLICIT , str(obssim.models()))
@@ -648,7 +650,8 @@ class csdmatter(ctools.csobservation) :
             if model.classname() not in bkgclasses:
                 spectral   = model.spectral()
                 spatial    = model.spatial()
-                components = [spectral,spatial]
+                temporal   = model.temporal()
+                components = [spatial,spectral,temporal]
 
                 for component in components:
                     cname = component.classname()
@@ -661,16 +664,20 @@ class csdmatter(ctools.csobservation) :
                         result[parerror] = par.error()
                         result[parfree]  = int(par.is_free())
             else:
-                spectral = model.spectral()
-                cname    = spectral.classname()
+                spectral   = model.spectral()
+                temporal   = model.temporal()
+                components = [spectral,temporal]
 
-                for par in spectral:
-                    parentry = '{}-{}-{}'.format(mname,cname,par.name())
-                    parerror = '{}_err'.format(parentry)
-                    parfree  = '{}_isfree'.format(parentry)
-                    result[parentry] = par.value()
-                    result[parerror] = par.error()
-                    result[parfree]  = int(par.is_free())        
+                for component in components:
+                    cname    = component.classname()
+
+                    for par in component:
+                        parentry = '{}-{}-{}'.format(mname,cname,par.name())
+                        parerror = '{}_err'.format(parentry)
+                        parfree  = '{}_isfree'.format(parentry)
+                        result[parentry] = par.value()
+                        result[parerror] = par.error()
+                        result[parfree]  = int(par.is_free())        
 
         #   Write models results
         self._log_header1(gammalib.TERSE, 'Results from fitting: Optimization')
@@ -709,7 +716,8 @@ class csdmatter(ctools.csobservation) :
                 if model.classname() not in bkgclasses:
                     spectral   = model.spectral()
                     spatial    = model.spatial()
-                    components = [spectral,spatial]
+                    temporal   = model.temporal()
+                    components = [spatial,spectral,temporal]
 
                     for component in components:
                         cname = component.classname()
@@ -718,12 +726,16 @@ class csdmatter(ctools.csobservation) :
                             msg = '{} ({}-{})'.format(par.name(),mname,cname)
                             parnames.append(msg)
                 else:
-                    spectral = model.spectral()
-                    cname    = spectral.classname()
+                    spectral   = model.spectral()
+                    temporal   = model.temporal()
+                    components = [spectral,temporal]
 
-                    for par in spectral:
-                        msg = '{} ({}-{})'.format(par.name(),mname,cname)
-                        parnames.append(msg)
+                    for component in components:
+                        cname    = component.classname()
+
+                        for par in component:
+                            msg = '{} ({}-{})'.format(par.name(),mname,cname)
+                            parnames.append(msg)
 
             result['parnames'] = parnames
 
@@ -736,12 +748,13 @@ class csdmatter(ctools.csobservation) :
 
             if self['calc_ulim'].boolean() :
                 #   Print to log
-                self._log_header3(gammalib.EXPLICIT,'Computing Upper Limit')
-                self._log_header2(gammalib.TERSE, 'Fixing parameters')
+                self._log_header2(gammalib.EXPLICIT,'Computing Upper Limit')
+                self._log_header3(gammalib.TERSE, 'Fixing parameters')
 
                 for model in like.obs().models():
-                    for par in model:
-                        par.fix()
+                    if model.classname() not in bkgclasses:
+                        for par in model:
+                            par.fix()
 
                 msg = 'Check that DM normalization is free'
                 self._log_header2(gammalib.TERSE, msg)
