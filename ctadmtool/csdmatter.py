@@ -30,6 +30,7 @@ from ctadmtool.dmspectrum.dmspectra import dmspectrum
 from ctadmtool.dmspectrum.dmflux_table import dmtable_ch
 
 import os
+import tempfile
 import math
 import numpy as np
 #====================================================================#
@@ -198,6 +199,7 @@ class csdmatter(ctools.csobservation) :
         self['emin'].real()
         self['emax'].real()
         self['modtype'].string()
+        self['spec_mode'].string()
         # self['dmspecfits'].filename()
 
         #   Query parameters according to the process
@@ -319,7 +321,7 @@ class csdmatter(ctools.csobservation) :
         maxval  = 1.0e+20
 
         #   Number of energy points used to compute the gamma-ray flux
-        epoints = 500
+        epoints = 750
 
         #   Model type
         modtype  = self['modtype'].string()
@@ -342,98 +344,143 @@ class csdmatter(ctools.csobservation) :
             lifetime  = self._lifetime
             fluxnorm  = dfactor / (4.*gammalib.pi*lifetime*dmmass)
 
+        #   This convert the flux to MeV units
         fluxnorm *= 1.e-3
 
-        msg = 'New range around mass {0}'.format(dmmass)
-        self._log_header3(gammalib.EXPLICIT, msg)
-        #   Compute range of masses around the mass of interest
-        #   This is to avoid spectrum with a lot of zeros
-        #   for very low masses in very wide mass ranges
-        #   (like spectrum computed between 0.1 GeV and 100 TeV)
-        #   Assuming log-spacing with full range of dlogm = 0.1
-        #   If the mass is close to 1.e+5 GeV, then the range becomes:
-        #       mmin = 10**(math.log10(mass)-delta_m)
-        #       mmax = mass of interest
-        #   The good part of this is I don't need
-        #   a lot of mass points to generate the table
-        #   This should speed up the analysis(?)
-        delta_m  = 0.2
-        thismmin = 0.0
-        thismmax = 0.0
-        logmmax  = math.log10(self['mmax'].real())
-
-        # number of points between mmin and mmax in the table-model
-        n = 50
-
-        if self._onoff_mode :
-            thismmin = math.ceil(10**(math.log10(dmmass)-0.5*delta_m))
-            thismmin = float(thismmin)
-            thismmax = dmmass
-        else :
-            thismmin = math.ceil(10**(math.log10(dmmass)-0.5*delta_m))
-            thismmin = float(thismmin)
-            if dmmass < math.floor(10**(logmmax-0.5*delta_m)) :
-                thismmax = math.ceil(10**(math.log10(dmmass)+0.5*delta_m))
-                thismmax = float(thismmax)
-            else :
-                thismmax = dmmass
-
-        self._log_string(gammalib.TERSE, str([thismmin, thismmax]))
-
-        #   Create instance of dmspectrum
-        #   to compute the dm-spectrum from annihilation or decay
         emin     = self['emin'].real()
         hasew    = self['ewcorrections'].boolean()
         process  = self['process'].string()
         eblmodel = self['eblmodel'].string()
         redshift = self['redshift'].real()
 
-        emax = 0.0
+        dmtable = None
 
-        if process == 'ANNA' :
-            emax = 0.9*thismmax
-        elif process == 'DECAY' :
-            emax = 0.9*thismmax/2.
+        if self['spec_mode'].string() == 'TABLE':
 
-        dminterp = dmspectrum(dmmass, emin, emax, channel,
-            redshift, process=process.lower(), eblmod=eblmodel,
-            has_EW=hasew, epoints=epoints)
+            msg = 'New range around mass {0}'.format(dmmass)
+            self._log_header3(gammalib.EXPLICIT, msg)
+            #   Compute range of masses around the mass of interest
+            #   This is to avoid spectrum with a lot of zeros
+            #   for very low masses in very wide mass ranges
+            #   (like spectrum computed between 0.1 GeV and 100 TeV)
+            #   Assuming log-spacing with full range of dlogm = 0.1
+            #   If the mass is close to 1.e+5 GeV, then the range becomes:
+            #       mmin = 10**(math.log10(mass)-delta_m)
+            #       mmax = mass of interest
+            #   The good part of this is I don't need
+            #   a lot of mass points to generate the table
+            #   This should speed up the analysis(?)
+            delta_m  = 0.2
+            thismmin = 0.0
+            thismmax = 0.0
+            logmmax  = math.log10(self['mmax'].real())
 
-        self._log_string(gammalib.EXPLICIT,'Create dark matter model')
-        #   Create instance of dmtable_ch with default parameters
-        dmspec = dmtable_ch(srcname, thismmin, thismmax, n, dminterp)
+            # number of points between mmin and mmax in the table-model
+            n = 100
 
-        msg = 'Update properties according to process {}'.format(process)
-        self._log_string(gammalib.EXPLICIT,msg)
-        #   Update properties according to process
-        if process == 'ANNA' :
-            dmspec.process = [process.lower(), self._jfactor, self._sigmav]
-        elif process == 'DECAY' :
-            dmspec.process = [process.lower(), self._dfactor, self._lifetime]
+            if self._onoff_mode :
+                thismmin = math.ceil(10**(math.log10(dmmass)-0.5*delta_m))
+                thismmin = float(thismmin)
+                thismmax = dmmass
+            else :
+                thismmin = math.ceil(10**(math.log10(dmmass)-0.5*delta_m))
+                thismmin = float(thismmin)
+                if dmmass < math.floor(10**(logmmax-0.5*delta_m)) :
+                    thismmax = math.ceil(10**(math.log10(dmmass)+0.5*delta_m))
+                    thismmax = float(thismmax)
+                else :
+                    thismmax = dmmass
 
-        msg = 'Update to channel {}'.format(channel)
-        self._log_string(gammalib.EXPLICIT,msg)
-        dmspec.channel = channel
+            self._log_string(gammalib.TERSE, str([thismmin, thismmax]))
 
-        #   Get the table model
-        dmspec.create_modeltable()
-        dmtable = dmspec.tablemodel
+            self._log_string(gammalib.EXPLICIT,'Create dark matter model')
 
-        #   tunning the table-model
+            emax = 0.0
 
-        dmtable['Mass'].value(dmmass)
-        dmtable['Mass'].scale(1.0)
-        dmtable['Normalization'].value(fluxnorm)
-        dmtable['Normalization'].scale(1.0)
-        dmtable['Normalization'].range(minval, maxval)
+            if process == 'ANNA' :
+                emax = 0.9*thismmax
+            elif process == 'DECAY' :
+                emax = 0.9*thismmax/2.
 
-        #   Mass parameter should be fixed
-        #   But, just to be sure
-        dmtable['Mass'].fix()
-        dmtable['Normalization'].free()
+            #   Create instance of dmspectrum
+            #   to compute the dm-spectrum from annihilation or decay
+            dminterp = dmspectrum(dmmass, emin, emax, channel,
+                redshift, process=process.lower(), eblmod=eblmodel,
+                has_EW=hasew, epoints=epoints)
+
+            #   Create instance of dmtable_ch with default parameters
+            dmspec = dmtable_ch(srcname,thismmin,thismmax,n,dminterp)
+
+            msg = 'Update properties according to process {}'.format(process)
+            self._log_string(gammalib.EXPLICIT,msg)
+            #   Update properties according to process
+            if process == 'ANNA' :
+                dmspec.process = [process.lower(),self._jfactor,self._sigmav]
+            elif process == 'DECAY' :
+                dmspec.process = [process.lower(),self._dfactor,self._lifetime]
+
+            msg = 'Update to channel {}'.format(channel)
+            self._log_string(gammalib.EXPLICIT,msg)
+            dmspec.channel = channel
+
+            #   Get the table model
+            dmspec.create_modeltable()
+            dmtable = dmspec.tablemodel
+
+            #   tunning the table-model
+            dmtable['Mass'].value(dmmass)
+            dmtable['Mass'].scale(1.0)
+            dmtable['Normalization'].value(fluxnorm)
+            dmtable['Normalization'].scale(1.0)
+            dmtable['Normalization'].range(minval,maxval)
+
+            #   Mass parameter should be fixed
+            #   But, just to be sure
+            dmtable['Mass'].fix()
+            dmtable['Normalization'].free()
+
+        elif self['spec_mode'].string() == 'FILE':
+
+            emax = 0.0
+
+            if process == 'ANNA' :
+                emax = 0.9*dmmass
+            elif process == 'DECAY' :
+                emax = 0.9*dmmass/2.
+
+            #   Create instance of dmspectrum
+            #   to compute the dm-spectrum from annihilation or decay
+            dminterp = dmspectrum(dmmass, emin, emax, channel,
+                redshift, process=process.lower(), eblmod=eblmodel,
+                has_EW=hasew, epoints=epoints)
+
+            dnde   = dminterp.spectra()
+            engs   = dminterp.energy
+            dphide = dnde * fluxnorm *1.e-3
+
+            # Create temporay file to save DM spectra (table)
+            fd,fname = tempfile.mkstemp()
+            f = open(fname, 'w')
+
+            # Save spectra to file
+            for i,eng in enumerate(engs):
+                phi = dphide[i]
+
+                if phi <=0.0:
+                    phi = 1.e-40
+
+                f.write('{:20.6e}\t{:20.6e}\n'.format(eng*1.e+3,phi))
+
+            f.close()
+
+            # Then de DM model using GModelSpectralFunc class
+            dmtable = gammalib.GModelSpectralFunc(fname,1.0)
+
+            dmtable['Normalization'].value(1.0)
+            dmtable['Normalization'].scale(1.0)
+            dmtable['Normalization'].range(minval,maxval)
 
         self._log_string(gammalib.EXPLICIT , str(dmtable))
-
         #   Creating Spatial container
         if self['modtype'].string() == 'PointSource' :
             ra     = self['ra'].real()
@@ -644,13 +691,13 @@ class csdmatter(ctools.csobservation) :
 
         result['logL'] = logL0
 
-        for model in like.obs().models():
-            mname = model.name()
+        for thismodel in like.obs().models():
+            mname = thismodel.name()
 
-            if model.classname() not in bkgclasses:
-                spectral   = model.spectral()
-                spatial    = model.spatial()
-                temporal   = model.temporal()
+            if thismodel.classname() not in bkgclasses:
+                spectral   = thismodel.spectral()
+                spatial    = thismodel.spatial()
+                temporal   = thismodel.temporal()
                 components = [spatial,spectral,temporal]
 
                 for component in components:
@@ -664,8 +711,8 @@ class csdmatter(ctools.csobservation) :
                         result[parerror] = par.error()
                         result[parfree]  = int(par.is_free())
             else:
-                spectral   = model.spectral()
-                temporal   = model.temporal()
+                spectral   = thismodel.spectral()
+                temporal   = thismodel.temporal()
                 components = [spectral,temporal]
 
                 for component in components:
@@ -695,8 +742,11 @@ class csdmatter(ctools.csobservation) :
             ts           = model.ts()
             result['TS'] = ts
 
+            # Get copy of fitted observation
+            fitted_obs = like.obs().copy()
+
             #   Get Covariance Matrix
-            covariance = like.obs().function().covariance()
+            covariance = fitted_obs.function().covariance()
 
             #   Convert Covariance Matrix to numpy array
             nrows  = covariance.rows()
@@ -711,12 +761,12 @@ class csdmatter(ctools.csobservation) :
 
             result['covariance'] = np_cov
             parnames = []
-            for model in like.obs().models():
-                mname = model.name()
-                if model.classname() not in bkgclasses:
-                    spectral   = model.spectral()
-                    spatial    = model.spatial()
-                    temporal   = model.temporal()
+            for thismodel in fitted_obs.models():
+                mname = thismodel.name()
+                if thismodel.classname() not in bkgclasses:
+                    spectral   = thismodel.spectral()
+                    spatial    = thismodel.spatial()
+                    temporal   = thismodel.temporal()
                     components = [spatial,spectral,temporal]
 
                     for component in components:
@@ -726,8 +776,8 @@ class csdmatter(ctools.csobservation) :
                             msg = '{} ({}-{})'.format(par.name(),mname,cname)
                             parnames.append(msg)
                 else:
-                    spectral   = model.spectral()
-                    temporal   = model.temporal()
+                    spectral   = thismodel.spectral()
+                    temporal   = thismodel.temporal()
                     components = [spectral,temporal]
 
                     for component in components:
@@ -751,18 +801,18 @@ class csdmatter(ctools.csobservation) :
                 self._log_header2(gammalib.EXPLICIT,'Computing Upper Limit')
                 self._log_header3(gammalib.TERSE, 'Fixing parameters')
 
-                for model in like.obs().models():
-                    # if model.classname() not in bkgclasses:
-                    for par in model:
-                        par.fix()
+                for thismodel in fitted_obs.models():
+                    if thismodel.classname() not in bkgclasses:
+                        for par in thismodel:
+                            par.fix()
 
                 msg = 'Check that DM normalization is free'
                 self._log_header2(gammalib.TERSE, msg)
                 srcname = self['srcname'].string()
-                like.obs().models()[srcname].spectral()['Normalization'].free()
+                fitted_obs.models()[srcname].spectral()['Normalization'].free()
 
                 #   Instance for ctulimit
-                ulimit              = ctools.ctulimit(like.obs())
+                ulimit              = ctools.ctulimit(fitted_obs)
                 ulimit['srcname']   = self['srcname'].string()
                 ulimit['eref']      = geref.TeV()
                 ulimit['emin']      = gemin.TeV()

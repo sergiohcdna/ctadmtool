@@ -564,6 +564,21 @@ class dmtable() :
         pars.append(par_mass)
         pars.append(par_channel)
 
+        #   Get ppfactor and normalization
+        #   This normalization computed here
+        #   is not neccessary. You can change the normalization
+        #   of the GModelSpectralTable later during simulation
+        #   or analysis steps via GModelSpectralTable methods
+        norm   = 0.0
+        minval = 0.0
+        maxval = 1.0e+20
+
+        if self._dminterp.process == 'anna' :
+            norm = self._norm_anna(self._sigmav, self._mmin,
+                self._delta, self._jfactor)
+        elif self._dminterp.process == 'decay' :
+            norm = self._norm_decay(self._lifetime, self._mmin, self._dfactor)
+
         #   GNdarray to save the spectra
         spectra = gammalib.GNdarray(self._mpoints,n_chs,n_eng)
 
@@ -583,21 +598,6 @@ class dmtable() :
                 for eindex in range(n_eng):
                     spectra[index, cindex, eindex] = dmspec[eindex]
 
-        #   Get ppfactor and normalization
-        #   This normalization computed here
-        #   is not neccessary. You can change the normalization
-        #   of the GModelSpectralTable later during simulation
-        #   or analysis steps via GModelSpectralTable methods
-        norm   = 0.0
-        minval = 0.0
-        maxval = 1.0e+20
-
-        if self._dminterp.process == 'anna' :
-            norm = self._norm_anna(self._sigmav, self._mmin,
-                self._delta, self._jfactor)
-        elif self._dminterp.process == 'decay' :
-            norm = self._norm_decay(self._lifetime, self._mmin, self._dfactor)
-
         #   Tuning the ModelSpectralTable
         #   I set the interpolation method of masses to logarithmic
         #   Mass and channel are fixed.
@@ -609,7 +609,7 @@ class dmtable() :
         model['Channel'].fix()
         model['Normalization'].value(norm)
         model['Normalization'].scale(1.0)
-        model['Normalization'].range(minval, maxval)
+        model['Normalization'].range(minval,maxval)
 
         self._model = model
 
@@ -1211,15 +1211,6 @@ class dmtable_ch() :
         #   GNdarray to save the spectra
         spectra = gammalib.GNdarray(self._mpoints,n_eng)
 
-        #   filling the spectrum
-        desc = 'Computing {}-spectrrum'.format(self._dminterp.process)
-        for index, mass in tqdm(enumerate(self._masses),desc=desc,leave=False):
-            #   Change the value of the mass
-            self._dminterp.mass = mass
-            dmspec              = self._dminterp.spectra()
-            for eindex in range(n_eng):
-                spectra[index, eindex] = dmspec[eindex]
-
         #   Get ppfactor and normalization
         #   This normalization computed here
         #   is not neccessary. You can change the normalization
@@ -1235,6 +1226,15 @@ class dmtable_ch() :
         elif self._dminterp.process == 'decay' :
             norm = self._norm_decay(self._lifetime, self._mmin, self._dfactor)
 
+        #   filling the spectrum
+        desc = 'Computing {}-spectrrum'.format(self._dminterp.process)
+        for index, mass in tqdm(enumerate(self._masses),desc=desc,leave=False):
+            #   Change the value of the mass
+            self._dminterp.mass = mass
+            dmspec              = self._dminterp.spectra()
+            for eindex in range(n_eng):
+                spectra[index, eindex] = dmspec[eindex]
+
         #   Tuning the ModelSpectralTable
         #   I set the interpolation method of masses to logarithmic
         #   Mass is a fixed parameter
@@ -1244,7 +1244,7 @@ class dmtable_ch() :
         model['Mass'].fix()
         model['Normalization'].value(norm)
         model['Normalization'].scale(1.0)
-        model['Normalization'].range(minval, maxval)
+        model['Normalization'].range(minval,maxval)
 
         self._model = model
 
