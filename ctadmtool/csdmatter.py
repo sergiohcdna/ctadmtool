@@ -317,7 +317,7 @@ class csdmatter(ctools.csobservation) :
         #   parameter. Probably because the likelihood profile
         #   is in extremely flat
         self._log_header3(gammalib.EXPLICIT, 'New DM-spectral model')
-        minval  = -1000.0
+        minval  = 0.0
         maxval  = 1.0e+20
 
         #   Number of energy points used to compute the gamma-ray flux
