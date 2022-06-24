@@ -1242,9 +1242,9 @@ class dmtable_ch() :
         model.table_par('Mass').method(1)
         model['Mass'].scale(1.)
         model['Mass'].fix()
-        model['Normalization'].range(minval,maxval)
         model['Normalization'].value(norm)
         model['Normalization'].scale(1.0)
+        model['Normalization'].range(minval,maxval)
 
         self._model = model
 
