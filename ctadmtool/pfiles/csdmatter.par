@@ -40,7 +40,7 @@ channel,       s, a, b,b|Mu|Tau|t|W|Z,, "Available channel to compute gamma-ray 
 ewcorrections, b, a, yes,,, "Include Electro-weak correction when computing gamma-ray flux"
 eblmodel,      s, a, dominguez,franceschini|franceschini2017|kneiske|finke|dominguez|dominguez-upper|dominguez-lower|inuoe|inuoe-low-pop3|inuoe-up-pop3|gilmore|gilmore-fixed,, "EBL model used to compute gamma-ray flux"
 redshift,      r, a, 0.02,0,2.0, "Redshift of the source"
-logsigmav,     r, a, -28.0,-35.0,100.0, "Logarithm of annihilation cross-section (in cm**3/s)"
+logsigmav,     r, a, -28.0,-35.0,-5.0, "Logarithm of annihilation cross-section (in cm**3/s)"
 loglifetime,   r, a, 30.0,10.0,50.0, "Logarithm of annihilation cross-section (in cm**3/s)"
 logastfactor,  r, a, 19.5,,, "Logarithm of astrophysica j-factor (in GeV**2/cm**5)"
 logdfactor,  r, a, 19.5,,, "Logarithm of astrophysical d-factor (in GeV/cm**2)"
