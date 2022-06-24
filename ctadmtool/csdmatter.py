@@ -752,9 +752,9 @@ class csdmatter(ctools.csobservation) :
                 self._log_header3(gammalib.TERSE, 'Fixing parameters')
 
                 for model in like.obs().models():
-                    # if model.classname() not in bkgclasses:
-                    for par in model:
-                        par.fix()
+                    if model.classname() not in bkgclasses:
+                        for par in model:
+                            par.fix()
 
                 msg = 'Check that DM normalization is free'
                 self._log_header2(gammalib.TERSE, msg)
