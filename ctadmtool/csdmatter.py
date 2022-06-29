@@ -1028,7 +1028,7 @@ class csdmatter(ctools.csobservation) :
         #   Return
         return
 
-    def run(self) :
+    def process(self) :
         """
         Run the script
         """
