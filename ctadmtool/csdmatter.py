@@ -530,9 +530,9 @@ class csdmatter(ctools.csobservation) :
 
         self._log_header1(gammalib.TERSE, 'Set the Dark matter model')
 
-        for model in obssim.models() :
-            # if model.classname() != 'GCTAModelIrfBackground' :
-            obssim.models().remove(model.name())
+        # for model in obssim.models() :
+        #     # if model.classname() != 'GCTAModelIrfBackground' :
+        #     obssim.models().remove(model.name())
 
         #   Make sure that the models container is empty
         #   I want to add the DM component
@@ -633,7 +633,7 @@ class csdmatter(ctools.csobservation) :
         if self._logVerbose() and self._logDebug() :
             like['debug'] = True
 
-        like.run()
+        like.process()
 
         #   Extract fit results
         model    = like.obs().models()[self['srcname'].string()]
@@ -740,8 +740,9 @@ class csdmatter(ctools.csobservation) :
                 self._log_header2(gammalib.TERSE, 'Fixing parameters')
 
                 for model in like.obs().models():
-                    for par in model:
-                        par.fix()
+                    if model.classname() == 'GModelSky':
+                        for par in model:
+                            par.fix()
 
                 msg = 'Check that DM normalization is free'
                 self._log_header2(gammalib.TERSE, msg)
@@ -761,11 +762,11 @@ class csdmatter(ctools.csobservation) :
                 if self._logVerbose() and self._logDebug() :
                     ulimit['debug'] = True
 
-                # ulimit.run()
+                # ulimit.process()
                 # ulimit_value = ulimit.diff_ulimit()
                 #    Catching exceptions
                 try :
-                    ulimit.run()
+                    ulimit.process()
                     ulimit_value = ulimit.diff_ulimit()
                 except :
                     self._log_string(gammalib.EXPLICIT, 'UL Calculation failed')
@@ -825,6 +826,15 @@ class csdmatter(ctools.csobservation) :
                 self._log_value(gammalib.TERSE, 'Flux', value)
                 if len( svmsg ) > 0 :
                     self._log_value(gammalib.TERSE, 'ScaleFactor', svmsg)
+                    if self['process'].string() == 'ANNA' :
+                        sigmalim = result['sigma_lim']
+                        msg  = 'UL on anna cross-section is: %.3e' % (sigmalim)
+                        msg += ' cm**3/s'
+                        self._log_value(gammalib.TERSE,'Cross-Section',msg)
+                    elif self['process'].string() == 'DECAY' :
+                        lifetimelim = result['lifetime_lim']
+                        msg = 'UL on decay lifetime is: %.3e s' % (lifetimelim)
+                        self._log_value(gammalib.TERSE,'Lifetime',msg)
 
         #   If logL0 == 0, then failed :(
         #   but, this does not raise any error
