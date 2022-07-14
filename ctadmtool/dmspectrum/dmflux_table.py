@@ -611,8 +611,8 @@ class dmtable() :
         model.table_par('Channel').method(0)
         model['Mass'].fix()
         model['Channel'].fix()
-        model['Normalization'].factor_value(1.0)
         model['Normalization'].scale(scale)
+        model['Normalization'].factor_value(1.0)
         # model['Normalization'].range(minval, maxval)
 
         self._model = model
@@ -1250,8 +1250,8 @@ class dmtable_ch() :
         model.table_par('Mass').method(1)
         # model['Mass'].scale(1.)
         model['Mass'].fix()
-        model['Normalization'].factor_value(1.0)
         model['Normalization'].scale(scale)
+        model['Normalization'].factor_value(1.0)
         # model['Normalization'].range(minval, maxval)
 
         self._model = model
