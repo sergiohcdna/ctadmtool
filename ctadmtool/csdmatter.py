@@ -422,10 +422,10 @@ class csdmatter(ctools.csobservation) :
         #   tunning the table-model
 
         dmtable['Mass'].value(dmmass)
-        dmtable['Mass'].scale(1.0)
-        dmtable['Normalization'].value(fluxnorm)
-        dmtable['Normalization'].scale(1.0)
-        dmtable['Normalization'].range(minval, maxval)
+        # dmtable['Mass'].scale(1.0)
+        # dmtable['Normalization'].value(fluxnorm)
+        # dmtable['Normalization'].scale(1.0)
+        # dmtable['Normalization'].range(minval, maxval)
 
         #   Mass parameter should be fixed
         #   But, just to be sure
