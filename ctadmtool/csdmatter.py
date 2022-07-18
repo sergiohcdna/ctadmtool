@@ -642,12 +642,15 @@ class csdmatter(ctools.csobservation) :
 
         result['logL'] = logL0
 
-        for model in like.obs().models():
-            mname = model.name()
+        # Get names of parameters to save in results
+        # and correctly get the properties to compute
+        # the correlation matrix
+        for m in like.obs().models():
+            mname = m.name()
 
-            if model.classname() not in bkgclasses:
-                spectral   = model.spectral()
-                spatial    = model.spatial()
+            if m.classname() not in bkgclasses:
+                spectral   = m.spectral()
+                spatial    = m.spatial()
                 components = [spectral,spatial]
 
                 for component in components:
@@ -661,7 +664,7 @@ class csdmatter(ctools.csobservation) :
                         result[parerror] = par.error()
                         result[parfree]  = int(par.is_free())
             else:
-                spectral = model.spectral()
+                spectral = m.spectral()
                 cname    = spectral.classname()
 
                 for par in spectral:
@@ -703,12 +706,15 @@ class csdmatter(ctools.csobservation) :
                         np_cov[j,i] = val
 
             result['covariance'] = np_cov
+
+            # Get names of parameters to save to results
+            # and correctly extract the correlation matrix
             parnames = []
-            for model in like.obs().models():
-                mname = model.name()
-                if model.classname() not in bkgclasses:
-                    spectral   = model.spectral()
-                    spatial    = model.spatial()
+            for m in like.obs().models():
+                mname = m.name()
+                if m.classname() not in bkgclasses:
+                    spectral   = m.spectral()
+                    spatial    = m.spatial()
                     components = [spectral,spatial]
 
                     for component in components:
@@ -718,7 +724,7 @@ class csdmatter(ctools.csobservation) :
                             msg = '{} ({}-{})'.format(par.name(),mname,cname)
                             parnames.append(msg)
                 else:
-                    spectral = model.spectral()
+                    spectral = m.spectral()
                     cname    = spectral.classname()
 
                     for par in spectral:
