@@ -750,7 +750,7 @@ class csdmatter(ctools.csobservation) :
                         for par in model:
                             par.fix()
 
-                msg = 'Check that DM normalization is free'
+                msg = 'Checking that DM normalization is free'
                 self._log_header2(gammalib.TERSE, msg)
                 srcname = self['srcname'].string()
                 like.obs().models()[srcname].spectral()['Normalization'].free()
