@@ -459,7 +459,7 @@ class csdmanna(ctools.csobservation):
 
         return tsvals
 
-    def _get_parbracket(self,norms):
+    def _get_parbracket(self,norms,tsvals):
         """
         Get Initial Parameter bracket to start root finding
 
@@ -468,7 +468,7 @@ class csdmanna(ctools.csobservation):
         Bracket
         """
         bracket = []
-        y       = np.array(self._deltats) + 3.841
+        y       = tsvals + 3.841
 
         for i in range(1,len(y)):
             dot = y[i-1]*y[i]
@@ -677,6 +677,8 @@ class csdmanna(ctools.csobservation):
                 result['dts'] = tsvals.tolist()
                 self._deltats.append(tsvals.tolist())
 
+                self._log_header3(gammalib.TERSE,'TS Scan')
+                self._log_string(gammalib.EXPLICIT,str(tsvals.tolist()))
                 #   Now, start calculation of UL
                 #   Because, we want to compute the 95% CL
                 #   for the UL to the flux, we search
@@ -692,7 +694,7 @@ class csdmanna(ctools.csobservation):
                 thisf = interp1d(np.log10(norms),tsvals+3.841,kind=kind)
 
                 #   Get initial bracket to start root finding
-                bracket = self._get_parbracket(np.log10(norms))
+                bracket = self._get_parbracket(np.log10(norms),tsvals)
                 self._log_value(gammalib.TERSE,
                     'Initial Parameter Range',str(bracket))
 
@@ -708,7 +710,7 @@ class csdmanna(ctools.csobservation):
                 dmspectra = dmmodel.spectral()
 
                 dmspectra['Normalization'].factor_value(ulnorm)
-                fluxUL               = fitted_spectra.flux(gemin,gemax)
+                fluxUL               = dmspectra.flux(gemin,gemax)
                 scale                = fluxUL/theoflux
                 self._sigmavUL       = scale*self._sigmavref
                 result['sigmav_lim'] = self._sigmavUL
@@ -796,7 +798,6 @@ class csdmanna(ctools.csobservation):
                 results.append(result)
 
         # Return results
-        print(results)
         return results
 
     def _create_fits(self,results):
