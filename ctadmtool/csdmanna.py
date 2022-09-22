@@ -27,7 +27,7 @@ from ctadmtool.dmspectrum.dmspectra import dmspectrum
 import math
 import numpy as np
 from scipy.interpolate import interp1d
-from scipy.optimize import root_scalar
+from scipy.optimize import minimize,root_scalar,fsolve
 
 import sys
 import os
@@ -328,6 +328,8 @@ class csdmanna(ctools.csobservation):
         sigmav    = self._sigmavref
         fluxnorm  = sigmav*jfactor/(8.*gammalib.pi*dmmass*dmmass)
         fluxnorm *= 1.e-3
+        #scale     = 1.0
+        #fluxnorm /= scale
 
         msg = 'New range around mass {0}'.format(dmmass)
         self._log_header3(gammalib.EXPLICIT, msg)
@@ -355,17 +357,17 @@ class csdmanna(ctools.csobservation):
         #   Get spectra induced by DM, and the energy values
         dnde     = dminterp.spectra()
         dnde    *= fluxnorm
-        energies = 1.e+3*dminterp.energy
+        energies = dminterp.energy
 
         #   Create ModelSpectra container
         dmspec = gammalib.GModelSpectralFunc()
         for i,energy in enumerate(energies):
-            eng    = gammalib.GEnergy(energy,'MeV')
+            eng    = gammalib.GEnergy(energy,'GeV')
             dphide = dnde[i]
             dmspec.append(eng,dphide)
 
         #   Tunning the DM-spectral component
-        dmspec['Normalization'].scale(1)
+        dmspec['Normalization'].scale(1.0)
         dmspec['Normalization'].factor_value(1)
         dmspec['Normalization'].factor_min(0)
         dmspec['Normalization'].factor_max(1.e+20)
@@ -431,24 +433,32 @@ class csdmanna(ctools.csobservation):
         ------
         Array with TS values
         """
+        src = self['srcname'].string()
 
         #   Make a deep copy of the observation in the ctlike container
         obs = like.obs().copy()
+
+        #   Get value of the fitted normalization
+        fnorm = like.obs().models()[src].spectral()['Normalization'].factor_value()
 
         #   Get number of points used to create the spectra
         points = self['npoints'].integer()
 
         #   Create array for normalization values
-        norms  = np.logspace(-5,5,points)
+        if fnorm == 0.0:
+            norms = np.logspace(0,5,points)
+            norms = np.insert(norms,0,0.0)
+        else:
+            logfnorm = np.log10(fnorm)
+            norms    = np.logspace(logfnorm-4,logfnorm+4,points+1)
 
         #   Fix the parameters of the DM Model
-        src = self['srcname'].string()
         for par in obs.models()[src].spectral():
             if par.is_free():
                 par.fix()
 
         #   Get TS Values
-        tsvals = np.zeros(points)
+        tsvals = np.zeros(points+1)
         for i,norm in enumerate(norms):
             obs.models()[src].spectral()['Normalization'].factor_value(norm)
             fit = ctools.ctlike(obs)
@@ -457,9 +467,9 @@ class csdmanna(ctools.csobservation):
             tsval = fit.obs().models()[src].ts()
             tsvals[i] = tsval
 
-        return tsvals
+        return norms,tsvals
 
-    def _get_parbracket(self,norms,tsvals):
+    def _get_parbracket(self,norms,tsvals,deltats):
         """
         Get Initial Parameter bracket to start root finding
 
@@ -468,7 +478,7 @@ class csdmanna(ctools.csobservation):
         Bracket
         """
         bracket = []
-        y       = tsvals + 3.841
+        y       = -tsvals - deltats
 
         for i in range(1,len(y)):
             dot = y[i-1]*y[i]
@@ -601,6 +611,7 @@ class csdmanna(ctools.csobservation):
         fitted_model   = like.obs().models()[srcname]
         fitted_spectra = fitted_model.spectral()
         logL0          = like.obs().logL()
+        fittednorm     = fitted_spectra['Normalization'].factor_value()
 
         # Fill some results
         result['logL'] = logL0
@@ -659,6 +670,7 @@ class csdmanna(ctools.csobservation):
             result['parnames'] = parnames
 
             self._log_value(gammalib.TERSE,'TS',ts)
+            self._log_value(gammalib.TERSE,'Fitted Norm',fittednorm)
             self._log_string(gammalib.EXPLICIT,str(rho))
 
             if self['calc_ulim'].boolean():
@@ -673,12 +685,13 @@ class csdmanna(ctools.csobservation):
 
                 msg = 'Calculation of Profile TS'
                 self._log_header3(gammalib.TERSE,msg)
-                tsvals = self._get_profilets(like)
-                result['dts'] = tsvals.tolist()
+                norms,tsvals    = self._get_profilets(like)
+                result['dts']   = tsvals.tolist()
+                result['norms'] = norms.tolist()
                 self._deltats.append(tsvals.tolist())
 
-                self._log_header3(gammalib.TERSE,'TS Scan')
-                self._log_string(gammalib.EXPLICIT,str(tsvals.tolist()))
+                # self._log_header3(gammalib.TERSE,'TS Scan')
+                # self._log_string(gammalib.EXPLICIT,str(tsvals.tolist()))
                 #   Now, start calculation of UL
                 #   Because, we want to compute the 95% CL
                 #   for the UL to the flux, we search
@@ -686,23 +699,60 @@ class csdmanna(ctools.csobservation):
                 #   that give us an increment of 3.841
                 #   The values for the normalization are hard coded
                 #   So,I need to compute again, hahaha
+                #   Also, because the normalization parameter
+                #   is bounded to be always positive
+                #   Some times, the best fit parameter
+                #   is found to be zero (correctly, should be negative)
+                #   but, then the calculation in this case is slightly
+                #   different.
                 points = self['npoints'].integer()
-                norms = np.logspace(-5,5,points)
 
                 #   Now, I get the interpolation function
-                kind  = self['interp_method'].string()
-                thisf = interp1d(np.log10(norms),tsvals+3.841,kind=kind)
+                kind    = self['interp_method'].string()
+                ulnorm  = 0.0
 
-                #   Get initial bracket to start root finding
-                bracket = self._get_parbracket(np.log10(norms),tsvals)
-                self._log_value(gammalib.TERSE,
-                    'Initial Parameter Range',str(bracket))
+                if fittednorm != 0.0:
+                    thisf = interp1d(np.log10(norms),-tsvals,kind=kind)
 
-                #   Root finding using the brent Method
-                sol = root_scalar(thisf,bracket=bracket,method='brentq')
+                    #   Get the minimum for -TS profile
+                    rmin = minimize(thisf,np.log10(fittednorm),method='Nelder-Mead',tol=1.e-6)
+                    self._log_value(gammalib.TERSE,'Minimum found: Norm',np.power(10,rmin.x[0]))
 
-                #   Extract UL to normalization
-                ulnorm = np.power(10,sol.root)
+                    #   The following are the TS at the minimum
+                    #   and the value of the TS after the increment
+                    #   to set a 95% CL Upper limit to the flux
+                    tsmin = thisf(rmin.x[0])
+                    tsnew = tsmin + 3.841
+
+                    self._log_value(gammalib.TERSE,'TS (at min)',tsmin)
+                    #   But, I need to redefine the interp1d function
+                    #   to search the value of norm where the increase occurs
+                    modf = interp1d(np.log10(norms),-tsvals-tsnew,kind=kind)
+
+                    #   Get initial bracket to start root finding
+                    #   Now, I will start from the minimum and increase
+                    #   in two orders of magnitud (only 2 in log(norms)
+                    bracket = self._get_parbracket(np.log10(norms),tsvals,tsnew)
+                    self._log_value(gammalib.TERSE,
+                        'Initial Parameter Range',str(bracket))
+
+                    #   Root finding using the brent Method
+                    sol  = root_scalar(modf,bracket=bracket,method='brentq')
+                    # sol  = fsolve(lambda x:thisf(x)-tsnew,)
+                    ulnorm = np.power(10,sol.root)
+                    #root = fsolve(lambda x:thisf(x)-tsnew,3,xtol=1.e-6)
+
+                else:
+                    thisf = interp1d(norms,-tsvals,kind=kind)
+
+                    #   Evaluated at zero, cuz the min is there
+                    tsmin = thisf(0)
+
+                    tsnew   = tsmin+3.841
+                    modf    = interp1d(norms,-tsvals-tsnew,kind=kind)
+                    bracket = self._get_parbracket(norms,tsvals,tsnew)
+                    sol     = root_scalar(modf,bracket=bracket,method='brentq')
+                    ulnorm  = sol.root
 
                 #   Compute UL to cross-section
                 #   and other related quantities
@@ -813,18 +863,19 @@ class csdmanna(ctools.csobservation):
         nrows = len(self._masses)
         ncols = len(results[0]['dts'])
 
-        e_min        = gammalib.GFitsTableDoubleCol('MinEnergy'  ,nrows)
-        e_max        = gammalib.GFitsTableDoubleCol('MaxEnergy'  ,nrows)
-        mass         = gammalib.GFitsTableDoubleCol('Mass'       ,nrows)
-        flux         = gammalib.GFitsTableDoubleCol('Flux'       ,nrows)
-        flux_err     = gammalib.GFitsTableDoubleCol('ErrFlux'    ,nrows)
-        e2flux       = gammalib.GFitsTableDoubleCol('E2Flux'     ,nrows)
-        e2flux_err   = gammalib.GFitsTableDoubleCol('E2ErrFlux'  ,nrows)
-        slogl        = gammalib.GFitsTableDoubleCol('LogL'       ,nrows)
-        TSvalues     = gammalib.GFitsTableDoubleCol('TS'         ,nrows)
-        ulim_values  = gammalib.GFitsTableDoubleCol('UpperLimit' ,nrows)
-        sc_factor    = gammalib.GFitsTableDoubleCol('ScaleFactor',nrows)
-        tsscan       = gammalib.GFitsTableDoubleCol('Delta TS'   ,nrows,ncols)
+        e_min        = gammalib.GFitsTableDoubleCol('MinEnergy'    ,nrows)
+        e_max        = gammalib.GFitsTableDoubleCol('MaxEnergy'    ,nrows)
+        mass         = gammalib.GFitsTableDoubleCol('Mass'         ,nrows)
+        flux         = gammalib.GFitsTableDoubleCol('Flux'         ,nrows)
+        flux_err     = gammalib.GFitsTableDoubleCol('ErrFlux'      ,nrows)
+        e2flux       = gammalib.GFitsTableDoubleCol('E2Flux'       ,nrows)
+        e2flux_err   = gammalib.GFitsTableDoubleCol('E2ErrFlux'    ,nrows)
+        slogl        = gammalib.GFitsTableDoubleCol('LogL'         ,nrows)
+        TSvalues     = gammalib.GFitsTableDoubleCol('TS'           ,nrows)
+        ulim_values  = gammalib.GFitsTableDoubleCol('UpperLimit'   ,nrows)
+        sc_factor    = gammalib.GFitsTableDoubleCol('ScaleFactor'  ,nrows)
+        tsscan       = gammalib.GFitsTableDoubleCol('Delta TS'     ,nrows,ncols)
+        norms        = gammalib.GFitsTableDoubleCol('log10NormScan',nrows,ncols)
 
         #   Add units for the relevant columns
         e_min.unit('TeV')
@@ -861,6 +912,7 @@ class csdmanna(ctools.csobservation):
             # Special Case: Add Column for Delta TS:
             for npoint in range(ncols):
                 tsscan[i,npoint] = result['dts'][npoint]
+                norms[i,npoint]  = result['norms'][npoint]
 
         #   Initialise FITS Table with extension "DMATTER"
         table = gammalib.GFitsBinTable(nrows)
@@ -885,6 +937,7 @@ class csdmanna(ctools.csobservation):
         table.append(paroi_lim)
         table.append(paroi_ref)
         table.append(tsscan)
+        table.append(norms)
 
         #   Create table for covariance matrix
         thisresult = results[0]
