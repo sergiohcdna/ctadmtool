@@ -446,7 +446,7 @@ class csdmanna(ctools.csobservation):
 
         #   Create array for normalization values
         if fnorm == 0.0:
-            norms = np.logspace(0,5,points)
+            norms = np.logspace(-7,7,points)
             norms = np.insert(norms,0,0.0)
         else:
             logfnorm = np.log10(fnorm)
@@ -458,16 +458,19 @@ class csdmanna(ctools.csobservation):
                 par.fix()
 
         #   Get TS Values
-        tsvals = np.zeros(points+1)
+        tsvals   = np.zeros(points+1)
+        loglvals = np.zeros(points+1)
         for i,norm in enumerate(norms):
             obs.models()[src].spectral()['Normalization'].factor_value(norm)
             fit = ctools.ctlike(obs)
             fit.process()
 
             tsval = fit.obs().models()[src].ts()
-            tsvals[i] = tsval
+            logL  = fit.obs().logL()
+            tsvals[i]   = tsval
+            loglvals[i] = logL
 
-        return norms,tsvals
+        return norms,tsvals,loglvals
 
     def _get_parbracket(self,norms,tsvals,deltats):
         """
@@ -685,9 +688,10 @@ class csdmanna(ctools.csobservation):
 
                 msg = 'Calculation of Profile TS'
                 self._log_header3(gammalib.TERSE,msg)
-                norms,tsvals    = self._get_profilets(like)
+                norms,tsvals,loglvals = self._get_profilets(like)
                 result['dts']   = tsvals.tolist()
                 result['norms'] = norms.tolist()
+                result['dlogl'] = loglvals.tolist()
                 self._deltats.append(tsvals.tolist())
 
                 # self._log_header3(gammalib.TERSE,'TS Scan')
@@ -722,7 +726,7 @@ class csdmanna(ctools.csobservation):
                     #   and the value of the TS after the increment
                     #   to set a 95% CL Upper limit to the flux
                     tsmin = thisf(rmin.x[0])
-                    tsnew = tsmin + 3.841
+                    tsnew = tsmin + 4.0
 
                     self._log_value(gammalib.TERSE,'TS (at min)',tsmin)
                     #   But, I need to redefine the interp1d function
@@ -744,11 +748,12 @@ class csdmanna(ctools.csobservation):
 
                 else:
                     thisf = interp1d(norms,-tsvals,kind=kind)
+                    self._log_value(gammalib.TERSE,'Minimum found: Norm',0.0)
 
                     #   Evaluated at zero, cuz the min is there
                     tsmin = thisf(0)
 
-                    tsnew   = tsmin+3.841
+                    tsnew   = tsmin+4.0
                     modf    = interp1d(norms,-tsvals-tsnew,kind=kind)
                     bracket = self._get_parbracket(norms,tsvals,tsnew)
                     sol     = root_scalar(modf,bracket=bracket,method='brentq')
@@ -876,6 +881,7 @@ class csdmanna(ctools.csobservation):
         sc_factor    = gammalib.GFitsTableDoubleCol('ScaleFactor'  ,nrows)
         tsscan       = gammalib.GFitsTableDoubleCol('Delta TS'     ,nrows,ncols)
         norms        = gammalib.GFitsTableDoubleCol('log10NormScan',nrows,ncols)
+        loglscan     = gammalib.GFitsTableDoubleCol('Delta logL'   ,nrows,ncols)
 
         #   Add units for the relevant columns
         e_min.unit('TeV')
@@ -911,8 +917,9 @@ class csdmanna(ctools.csobservation):
 
             # Special Case: Add Column for Delta TS:
             for npoint in range(ncols):
-                tsscan[i,npoint] = result['dts'][npoint]
-                norms[i,npoint]  = result['norms'][npoint]
+                tsscan[i,npoint]   = result['dts'][npoint]
+                norms[i,npoint]    = result['norms'][npoint]
+                loglscan[i,npoint] = result['dlogl'][npoint]
 
         #   Initialise FITS Table with extension "DMATTER"
         table = gammalib.GFitsBinTable(nrows)
@@ -938,6 +945,7 @@ class csdmanna(ctools.csobservation):
         table.append(paroi_ref)
         table.append(tsscan)
         table.append(norms)
+        table.append(loglscan)
 
         #   Create table for covariance matrix
         thisresult = results[0]
