@@ -472,7 +472,7 @@ class csdmanna(ctools.csobservation):
 
         return norms,tsvals,loglvals
 
-    def _get_parbracket(self,norms,tsvals,deltats):
+    def _get_parbracket(self,norms,tsvals,bestts,delta):
         """
         Get Initial Parameter bracket to start root finding
 
@@ -481,9 +481,9 @@ class csdmanna(ctools.csobservation):
         Bracket
         """
         bracket = []
-        y       = -tsvals - deltats
+        y       = bestts-tsvals-delta
 
-        for i in range(1,len(y)):
+        for i in range(len(y)-1,0,-1):
             dot = y[i-1]*y[i]
             if dot < 0:
                 bracket.append(norms[i-1])
@@ -725,18 +725,19 @@ class csdmanna(ctools.csobservation):
                     #   The following are the TS at the minimum
                     #   and the value of the TS after the increment
                     #   to set a 95% CL Upper limit to the flux
-                    tsmin = thisf(rmin.x[0])
-                    tsnew = tsmin + 4.0
+                    bestts = -thisf(rmin.x[0])
+                    delta  = gammalib.erfinv(0.90)*gammalib.sqrt_two
+                    delta  = delta**2
 
-                    self._log_value(gammalib.TERSE,'TS (at min)',tsmin)
+                    self._log_value(gammalib.TERSE,'TS (at min)',bestts)
                     #   But, I need to redefine the interp1d function
                     #   to search the value of norm where the increase occurs
-                    modf = interp1d(np.log10(norms),-tsvals-tsnew,kind=kind)
+                    modf = interp1d(np.log10(norms),bestts-tsvals-delta,kind=kind)
 
                     #   Get initial bracket to start root finding
                     #   Now, I will start from the minimum and increase
                     #   in two orders of magnitud (only 2 in log(norms)
-                    bracket = self._get_parbracket(np.log10(norms),tsvals,tsnew)
+                    bracket = self._get_parbracket(np.log10(norms),tsvals,bestts,delta)
                     self._log_value(gammalib.TERSE,
                         'Initial Parameter Range',str(bracket))
 
@@ -751,11 +752,16 @@ class csdmanna(ctools.csobservation):
                     self._log_value(gammalib.TERSE,'Minimum found: Norm',0.0)
 
                     #   Evaluated at zero, cuz the min is there
-                    tsmin = thisf(0)
+                    bestts = -thisf(0)
+                    delta  = gammalib.erfinv(0.90)*gammalib.sqrt_two
+                    delta  = delta*delta
 
-                    tsnew   = tsmin+4.0
-                    modf    = interp1d(norms,-tsvals-tsnew,kind=kind)
-                    bracket = self._get_parbracket(norms,tsvals,tsnew)
+                    self._log_value(gammalib.TERSE,'TS at minimum:',bestts)
+
+                    modf    = interp1d(norms,bestts-tsvals-delta,kind=kind)
+                    bracket = self._get_parbracket(norms,tsvals,bestts,delta)
+                    self._log_value(gammalib.TERSE,
+                        'Initial Parameter Range',str(bracket))
                     sol     = root_scalar(modf,bracket=bracket,method='brentq')
                     ulnorm  = sol.root
 
