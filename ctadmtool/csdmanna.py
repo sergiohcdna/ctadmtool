@@ -457,6 +457,13 @@ class csdmanna(ctools.csobservation):
             if par.is_free():
                 par.fix()
 
+        # This is a simple test to check if fixing all the parameters
+        # for the other components help to found the UL to the DM model
+        # for model in obs.models():
+        #    for par in model:
+        #        if par.is_free():
+        #            par.fix()
+
         #   Get TS Values
         tsvals   = np.zeros(points+1)
         loglvals = np.zeros(points+1)
@@ -634,6 +641,24 @@ class csdmanna(ctools.csobservation):
             #   Extract TS of the best fit
             ts           = fitted_model.ts()
             result['TS'] = ts
+
+            # Extract TS for the other components in the container, if any
+            mnames = []
+            for model in like.obs().models():
+                if model.name() != srcname and model.classname() == 'GModelSky':
+                    thists = model.ts()
+
+                    # Save TS to results dict
+                    kname         = 'TS-{}'.format(model.name())
+                    result[kname] = thists
+                    mnames.append(kname) 
+
+            if not mnames:
+                self._log_string(gammalib.EXPLICIT,'No extra models found')
+            else:
+                result['Model Names'] = mnames
+                self._log_string(gammalib.EXPLICIT,'Models extra found')
+                self._log_string(gammalib.EXPLICIT,str(mnames))
 
             #   Get Covariance Matrix
             covariance = like.obs().function().covariance()
@@ -952,6 +977,18 @@ class csdmanna(ctools.csobservation):
         table.append(tsscan)
         table.append(norms)
         table.append(loglscan)
+
+        # Create tables for TS of extra models
+        if 'Model Names' in results[0]:
+            for mname in results[0]['Model Names']:
+                thistscol = gammalib.GFitsTableDoubleCol(mname,nrows)
+
+                # Fill the TS columns
+                for i,result in enumerate(results):
+                    thistscol[i] = result[mname]
+
+                # Append columns to table
+                table.append(thistscol)
 
         #   Create table for covariance matrix
         thisresult = results[0]
