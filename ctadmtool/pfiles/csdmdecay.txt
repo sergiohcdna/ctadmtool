@@ -1,0 +1,221 @@
+
+csdmdecay
+=========
+
+Computes exclusion limits on decay lifetime for a list of masses of dark matter particles.
+
+
+Synopsis
+--------
+
+This script computes the exclusion limits (95% confidence level) on decay lifetime of dark matter particles. Given an observation, a dark-matter model (GModelSpectralFunc) is fitted using ctlike. If is specified by the user, csdmatter also computes the upper-limit on the flux and translated into an exclusion limit on the annihilation cross-section. This process is repeated for different masses (separated logarithmically) [a mass point] of the dark matter candidate. 
+
+Detailed description
+--------------------
+
+In order to compute the normalization of the flux for the GModelSpectralFunc, the user must pass the values of the astrophysical factor and the parameter of interest.
+
+
+For every mass point, the csdmdecay app save:
+
+- MinEnergy ----> Value of minimum Energy (in GeV) to compute the spectrum
+- MaxEnergy ----> Value of maximum Energy (in GeV) to compute the spectrum
+- Mass ---------> Mass of the dark matter candidate (in GeV)
+- Flux ---------> Fitted Flux at reference energy. If the process is
+                  annihilation, the reference energy is half the mass of the
+                  dark matter candidate. If the process is decay, the reference
+                  energy is quarter the mass of the dark matter candidate.
+- ErrFlux ------> Error of the fitted flux at reference energy
+- E2Flux -------> Reference energy squared times the fitted flux (nuFnu)
+- E2ErrFlux ----> Error of nuFnu
+- LogL ---------> Value of the log-likelihood (best fit)
+- TS -----------> Value of test statistic (best fit)
+- UpperLimit ---> Upper limit to the integrated flux between MinEnergy and 95%
+                  of the available energy depending in the process.
+- ScaleFactor --> Ratio of the integrated theoretical flux and the upper limit
+
+- LLLifetime ---> Exclusion limit on the annihilation cross-section.
+                      This is obtained via the scale factor times the
+                      reference cross-section
+- RefLifetime --> Reference value used to compute the spectrum
+
+
+- Correlation --> Correlation matrix for all the free parameters during the
+                  likelihood fitting.
+
+- Fitted Parameters --> Value and error of free parameters.
+
+- TS scan ---> Values of the scan for TS profile
+
+- Norm Scan ---> Values of normalization used to compute the TS profile
+
+The collection of results for n mass points are saved into a fits file with three extensions:
+
+1. DMATTER
+2. Fitted Parameters
+3. Correlation Matrix
+
+Additional sources or components to the total flux are considered. They can be specified via the [inmodel] parameter or included in the GModels container of the observation passes to csdmdecay.
+
+The csdmdecay app takes an observation and append the model with a dark-matter GModelSpectralFunc with normalization computed from the astrophysical factor and the reference value of the parameter of interest. Then, csdmdecay fits the model to the input observation and extract the log-likelihood and test statistic of the best fit.
+
+The UL to the flux of the DM model is computed using the profile TS (or TS profile?, aka: LLR).
+
+To compute the exclusion limit, csdmdecay uses a scale factor that results from the ratio of the of the integrated expected flux and the integrated upper-limit flux. The integrated fluxes are computed in the relevant energy for DM decay:
+
+- [Emin, 0.45*dm-mass], where Emin is the minimum value of energy indicated by the user, and the maximum value is the 90% of the half-mass of the dark-matter candidate. 
+
+The selection of 90% of the available energy is to avoid conflicts with possible cero values in the spectrum that results in not a number (nan) exceptions. Also, the reason to include the integrated flux is to take full advantage of the energy range where the observatory can detect a signal.
+
+The scale factor is used to compute the exclusion limit as follows:
+
+- The exclusion limit on the cross-section is:
+
+        lifetime_LL = lifetime_ref / scale_factor
+
+where lifetime_ref is the reference value used to compute the spectra.
+
+For more information refer to ctadmtool project or send an email to:
+skerzot@ciencias.unam.mx
+
+*******************************
+*                             *
+*    Judit, Miguel, Sergio    *
+*       The DMTaskForce       *
+*                             *
+*******************************
+
+General parameters
+------------------
+
+inobs [file]
+    Input event list, counts cube or observation definition XML file.
+
+srcname [string]
+    Name of the source in the source model XML file which should be used
+    for spectrum generation.
+
+inmodel [string]
+    Name of XML model file
+
+expcube [file]
+    Input exposure cube file.
+
+psfcube [file]
+    Input PSF cube file.
+
+edispcube [file]
+    Input energy dispersion cube file.
+
+bkgcube [file]
+    Input background cube file.
+
+caldb [string]
+    Calibration database.
+
+irf [string]
+    Instrumental response function.
+
+(edisp = no) [boolean]
+    Apply energy dispersion to response computation?
+
+mmin [real] <50->
+    Minimum value of dark-matter mass in GeV
+
+mmax [real] <-1.e+5>
+    Maximum value of dark-matter mass in GeV
+
+mnumpoints [integer] <2-100>
+    Number of dark-matter mass bins to perform the analysis. Note that the mass points are separated logarithmically
+
+channel [string] <b|Mu|Tau|t|W|Z>
+    Available channel to compute gamma-ray flux from process. Calculations are performed using interpolation of PPPC4DMID tables: http://www.marcocirelli.net/PPPC4DMID.html
+
+ewcorrection [boolean]
+    If the spectrum has EW corrections. This allows to read properly the GModelSpectralTable model and extract the channels.
+
+eblmodel [string] <franceschini|franceschini2017|kneiske|finke|dominguez|dominguez-upper|dominguez-lower|inuoe|inuoe-low-pop3|inuoe-up-pop3|gilmore|gilmore-fixed>
+    EBL model to compute attenuation of gamma-ray flux
+
+redshift [real] <0 - 2.0>
+    Redshift of the source. Used to compute gamma-ray flux
+
+loglifetime [real] <20.0 - 40.0>
+    Logarithm of decay lifetime (in s)
+
+logdfactor [real]
+    Logarithm of astrophysical d factor (in GeV/cm**2)
+
+emin [real] <30->
+    Start value for dark matter flux in GeV
+
+emax [real] <-1.e+5>
+    Stop value for dark matter flux in GeV
+
+modtype [string] <PointSource|DiffuseSource> 
+    Select the Model type specifier to generate GModels
+
+ra [real] <-360 - 360>
+    Right Ascension in degrees
+
+dec [real] <-90 - 90>
+    Declination in degrees
+
+map_fits [string]
+    Spatial Template to describe gamma-ray emission
+
+outfile [file]
+    Output spectrum FITS file.
+
+(statistic = DEFAULT) <DEFAULT|CSTAT|WSTAT|CHI2> [string]
+    Optimization statistic. DEFAULT uses the default statistic for all
+    observations, which is CSTAT or the statistic specified in the
+    observation definition XML file. CSTAT uses the C statistic for
+    all observations, WSTAT uses the W statistic for all On/Off
+    observations, and CHI2 uses the Chi squared statistic for all
+    binned or stacked observations.
+
+(calc_ulim = yes) [boolean]
+    Compute upper limit for each spectral point?
+
+
+Standard parameters
+-------------------
+
+(nthreads = 0) [integer]
+    Number of parallel processes (0=use all available CPUs).
+
+(publish = no) [boolean]
+    Specifies whether the spectrum should be published on VO Hub.
+
+(chatter = 2) [integer]
+    Verbosity of the executable:
+     chatter = 0: no information will be logged
+
+     chatter = 1: only errors will be logged
+
+     chatter = 2: errors and actions will be logged
+
+     chatter = 3: report about the task execution
+
+     chatter = 4: detailed report about the task execution
+
+(clobber = yes) [boolean]
+    Specifies whether an existing source spectrum output file should be
+    overwritten.
+
+(debug = no) [boolean]
+    Enables debug mode. In debug mode the executable will dump any log file
+    output to the console.
+
+(mode = ql) [string]
+    Mode of automatic parameters (default is ql, i.e. "query and learn").
+
+(logfile = csdmatter.log) [filename]
+    Log filename.
+
+
+Related tools or scripts
+------------------------
+
+ctlike
