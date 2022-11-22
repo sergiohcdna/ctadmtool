@@ -164,7 +164,15 @@ class csdmdecay(ctools.csobservation):
         #   The DM is still computed during execution time,
         #   but only appended to the models container
         #   passed by the user
-        if self.obs().models().is_empty():
+        #   Check if the observation mode
+        #   if onoff Obs and the statistic is wstat
+        #   then pass, if not, then request the model
+        if self.obs()[0].classname() == 'GCTAOnOffObservation' and self.obs()[0].statistic() == 'wstat':
+            if self.obs().models().is_empty():
+                pass
+            else:
+                self.obs().models(self['inmodel'].filename())
+        else:
             self.obs().models(self['inmodel'].filename())
 
         #   Query source name
