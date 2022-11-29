@@ -170,10 +170,10 @@ class csdmdecay(ctools.csobservation):
         if self.obs()[0].classname() == 'GCTAOnOffObservation' and self.obs()[0].statistic() == 'wstat':
             if self.obs().models().is_empty():
                 pass
-            else:
-                self.obs().models(self['inmodel'].filename())
         else:
-            self.obs().models(self['inmodel'].filename())
+            # Check if model container is empty for all the other observation setups
+            if self.obs().models().is_empty():
+                self.obs().models(self['inmodel'].filename())
 
         #   Query source name
         self['srcname'].string()
